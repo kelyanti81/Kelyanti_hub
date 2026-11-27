@@ -10,12 +10,6 @@
     </div>
 </div>
 
-{% with messages = get_flashed_messages(with_categories=true) %}
-    {% for category, message in messages %}
-        <div class="notice {{ category }}">{{ message }}</div>
-    {% endfor %}
-{% endwith %}
-
 <section class="panel">
     <h2>Créer un membre</h2>
 
@@ -30,96 +24,77 @@
         <input id="password" name="password" type="password"
                required minlength="10" placeholder="10 caractères minimum">
 
-        <button type="submit" class="btn-primary">Créer le compte</button>
+        <button class="btn-primary" type="submit">Créer le compte</button>
     </form>
 </section>
 
 <section class="panel">
-    <div class="panel-heading">
-        <div>
-            <h2>Membres inscrits</h2>
-            <p>{{ members|length }} compte(s)</p>
-        </div>
-    </div>
+    <h2>Membres inscrits ({{ members|length }})</h2>
 
     {% if members %}
-        <div class="members-list">
-            {% for member in members %}
-                <article class="member-card">
-                    <div class="member-info">
-                        <div class="member-avatar"
-                             style="--member-color: {{ member.theme_color }}">
-                            {{ member.username[:1]|upper }}
-                        </div>
+    <div class="members-list">
+        {% for member in members %}
+        <article class="member-card">
+            <div class="member-info">
+                <div class="member-avatar"
+                     style="--member-color: {{ member.theme_color }}">
+                    {{ member.username[:1]|upper }}
+                </div>
+                <div>
+                    <h3>{{ member.username }}</h3>
+                    <p>
+                        {% if member.grade == "moderator" %}
+                            Modérateur
+                        {% else %}
+                            Membre
+                        {% endif %}
+                    </p>
+                    <span class="status {{ 'active' if member.active else 'inactive' }}">
+                        {{ 'Actif' if member.active else 'Désactivé' }}
+                    </span>
+                </div>
+            </div>
 
-                        <div>
-                            <h3>{{ member.username }}</h3>
-                            <p>
-                                Grade :
-                                {% if member.grade == "moderator" %}
-                                    Modérateur
-                                {% else %}
-                                    Membre
-                                {% endif %}
-                            </p>
-                            <span class="status {{ 'active' if member.active else 'inactive' }}">
-                                {{ 'Actif' if member.active else 'Désactivé' }}
-                            </span>
-                        </div>
-                    </div>
+            <div class="member-actions">
+                <form method="POST"
+                      action="{{ url_for('change_member_grade', member_id=member.id) }}"
+                      class="form-inline">
+                    <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+                    <label for="grade-{{ member.id }}">Grade</label>
+                    <select id="grade-{{ member.id }}" name="grade">
+                        <option value="member" {{ 'selected' if member.grade == 'member' else '' }}>Membre</option>
+                        <option value="moderator" {{ 'selected' if member.grade == 'moderator' else '' }}>Modérateur</option>
+                    </select>
+                    <button class="btn-secondary" type="submit">Enregistrer</button>
+                </form>
 
-                    <div class="member-actions">
-                        <form method="POST"
-                              action="{{ url_for('change_member_grade', member_id=member.id) }}"
-                              class="form-inline">
-                            <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+                <form method="POST" action="{{ url_for('toggle_member', member_id=member.id) }}">
+                    <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+                    <button class="btn-secondary" type="submit">
+                        {{ 'Désactiver' if member.active else 'Réactiver' }}
+                    </button>
+                </form>
 
-                            <label for="grade-{{ member.id }}">Grade</label>
-                            <select id="grade-{{ member.id }}" name="grade">
-                                <option value="member"
-                                    {{ 'selected' if member.grade == 'member' else '' }}>
-                                    Membre
-                                </option>
-                                <option value="moderator"
-                                    {{ 'selected' if member.grade == 'moderator' else '' }}>
-                                    Modérateur
-                                </option>
-                            </select>
+                <form method="POST"
+                      action="{{ url_for('change_member_password', member_id=member.id) }}"
+                      class="form-stack compact">
+                    <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+                    <label for="password-{{ member.id }}">Nouveau mot de passe</label>
+                    <input id="password-{{ member.id }}" name="password"
+                           type="password" minlength="10" required>
+                    <button class="btn-secondary" type="submit">Changer le mot de passe</button>
+                </form>
 
-                            <button type="submit" class="btn-secondary">Enregistrer</button>
-                        </form>
-
-                        <form method="POST"
-                              action="{{ url_for('toggle_member', member_id=member.id) }}">
-                            <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
-                            <button type="submit" class="btn-secondary">
-                                {{ 'Désactiver' if member.active else 'Réactiver' }}
-                            </button>
-                        </form>
-
-                        <form method="POST"
-                              action="{{ url_for('change_member_password', member_id=member.id) }}"
-                              class="form-stack compact">
-                            <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
-                            <label for="password-{{ member.id }}">Nouveau mot de passe</label>
-                            <input id="password-{{ member.id }}" name="password"
-                                   type="password" minlength="10" required
-                                   placeholder="10 caractères minimum">
-                            <button type="submit" class="btn-secondary">
-                                Modifier le mot de passe
-                            </button>
-                        </form>
-
-                        <form method="POST"
-                              action="{{ url_for('delete_member', member_id=member.id) }}"
-                              onsubmit="return confirm('Supprimer définitivement ce membre ?')">
-                            <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
-                            <button type="submit" class="btn-danger">Supprimer le compte</button>
-                        </form>
-                    </div>
-                </article>
-            {% endfor %}
-        </div>
+                <form method="POST"
+                      action="{{ url_for('delete_member', member_id=member.id) }}"
+                      data-confirm="Supprimer définitivement ce membre ?">
+                    <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+                    <button class="btn-danger" type="submit">Supprimer le compte</button>
+                </form>
+            </div>
+        </article>
+        {% endfor %}
+    </div>
     {% else %}
         <p>Aucun membre pour le moment.</p>
     {% endif %}

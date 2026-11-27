@@ -50,6 +50,14 @@ def check_csrf():
         abort(400, "Formulaire expiré. Recharge la page et réessaie.")
 
 
+@app.get("/service-worker.js")
+def service_worker():
+    response = app.send_static_file("service-worker.js")
+    response.headers["Service-Worker-Allowed"] = "/"
+    response.headers["Content-Type"] = "application/javascript; charset=utf-8"
+    return response
+
+
 @app.get("/")
 @login_required
 def home():

@@ -1,38 +1,33 @@
 
 const CACHE_NAME = "kelyanti-hub-v1";
 
-const STATIC_FILES = [
+const FILES_TO_CACHE = [
     "/static/style.css",
     "/static/app.js",
     "/static/manifest.json",
     "/static/icon.svg"
 ];
 
-// Installation
-self.addEventListener("install", event => {
+self.addEventListener("install", (event) => {
     event.waitUntil(
-        caches.open(CACHE_NAME)
-            .then(cache => cache.addAll(STATIC_FILES))
-            .then(() => self.skipWaiting())
+        caches.open(CACHE_NAME).then((cache) => cache.addAll(FILES_TO_CACHE))
     );
+    self.skipWaiting();
 });
 
-// Activation
-self.addEventListener("activate", event => {
+self.addEventListener("activate", (event) => {
     event.waitUntil(
-        caches.keys().then(keys => {
-            return Promise.all(
-                keys
-                    .filter(key => key !== CACHE_NAME)
-                    .map(key => caches.delete(key))
-            );
-        }).then(() => self.clients.claim())
+        caches.keys().then((keys) =>
+            Promise.all(
+                keys.filter((key) => key !== CACHE_NAME)
+                    .map((key) => caches.delete(key))
+            )
+        )
     );
+    self.clients.claim();
 });
 
-// Mise en cache des ressources statiques uniquement
-self.addEventListener("fetch", event => {
-
+self.addEventListener("fetch", (event) => {
     const request = event.request;
     const url = new URL(request.url);
 
@@ -45,22 +40,18 @@ self.addEventListener("fetch", event => {
     }
 
     event.respondWith(
-        caches.match(request).then(cached => {
-            if (cached) {
-                return cached;
-            }
-
-            return fetch(request).then(response => {
+        caches.match(request).then((cached) => {
+            const network = fetch(request).then((response) => {
                 if (response.ok) {
                     const copy = response.clone();
-
-                    caches.open(CACHE_NAME).then(cache => {
+                    caches.open(CACHE_NAME).then((cache) => {
                         cache.put(request, copy);
                     });
                 }
-
                 return response;
             });
+
+            return cached || network;
         })
     );
 });

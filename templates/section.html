@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}{{ title }} • Kelyanti Hub{% endblock %}
+{% block content %}
+  <div class="welcome-row"><div><div class="eyebrow">TON ESPACE PERSONNEL</div><h1>{{ title }}</h1><p class="muted">{{ description }}</p></div><div class="date-pill">● &nbsp; Espace en ligne</div></div>
+  {% if page == 'dashboard' %}
+    <div class="stats-grid">
+      <article class="stat-card"><div class="stat-icon purple">▦</div><div class="stat-name">Minecraft</div><div class="stat-note">Gestion du serveur</div><a href="{{ url_for('section', page='minecraft') }}">Ouvrir l'espace <span>→</span></a></article>
+      <article class="stat-card"><div class="stat-icon blue">⌁</div><div class="stat-name">Arduino</div><div class="stat-note">Projets électroniques</div><a href="{{ url_for('section', page='arduino') }}">Voir les projets <span>→</span></a></article>
+      <article class="stat-card"><div class="stat-icon green">⚙</div><div class="stat-name">Paramètres</div><div class="stat-note">Personnalisation</div><a href="{{ url_for('section', page='settings') }}">Configurer <span>→</span></a></article>
+    </div>
+    <article class="panel"><div class="panel-heading"><div><div class="eyebrow">APERÇU</div><h2>Bienvenue sur Kelyanti Hub</h2></div><span class="tag">Version initiale</span></div><p class="muted">Ton tableau de bord est prêt. Utilise le menu à gauche pour accéder à tes différents espaces. De nouvelles fonctions pourront être ajoutées progressivement.</p></article>
+  {% elif page == 'minecraft' %}
+    <article class="panel feature-panel"><div class="feature-icon">▦</div><div><div class="eyebrow">ESPACE MINECRAFT</div><h2>Ton serveur Minecraft</h2><p class="muted">Le panneau de contrôle du serveur sera relié ici dans une prochaine étape. L'hébergement du site et celui du serveur Minecraft restent séparés.</p><span class="tag">En préparation</span></div></article>
+  {% elif page == 'arduino' %}
+    <article class="panel feature-panel"><div class="feature-icon">⌁</div><div><div class="eyebrow">ESPACE ARDUINO</div><h2>Tes projets électroniques</h2><p class="muted">Tu pourras retrouver ici tes projets, tes notes et les informations utiles à tes montages Arduino.</p><span class="tag">En préparation</span></div></article>
+  {% elif page == 'settings' %}
+    <article class="panel"><h2>Paramètres généraux</h2><p class="muted">Les options de personnalisation seront ajoutées ici.</p></article>
+  {% elif page == 'account' %}
+    <article class="panel"><h2>Mon compte</h2><p class="muted">Connecté avec le compte <strong>{{ session.get('username') }}</strong>.</p><form method="post" action="{{ url_for('logout') }}"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><button class="secondary-button" type="submit">Se déconnecter</button></form></article>
+  {% endif %}
+{% endblock %}

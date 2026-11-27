@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#090d18">
+  <title>Connexion • Kelyanti Hub</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="login-page">
+  <main class="login-card">
+    <a class="brand login-brand" href="/"><span class="brand-mark">K</span><span>KELYANTI <small>HUB</small></span></a>
+    <div class="eyebrow">BIENVENUE</div>
+    <h1>Content de te revoir.</h1>
+    <p class="muted">Connecte-toi pour accéder à ton espace personnel.</p>
+    {% if error %}<div class="alert">{{ error }}</div>{% endif %}
+    <form method="post">
+      <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+      <label for="username">Identifiant</label>
+      <input id="username" name="username" autocomplete="username" placeholder="Ton identifiant" required>
+      <label for="password">Mot de passe</label>
+      <input id="password" name="password" type="password" autocomplete="current-password" placeholder="Ton mot de passe" required>
+      <button type="submit">Se connecter <span>→</span></button>
+    </form>
+    <div class="login-foot"><span class="online-dot"></span> Connexion sécurisée</div>
+  </main>
+</body>
+</html>

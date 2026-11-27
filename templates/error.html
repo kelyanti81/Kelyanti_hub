@@ -1,1 +1,22 @@
-<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>{{ code }} • Kelyanti Hub</title><link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}"></head><body class="login-page"><main class="login-card"><div class="eyebrow">KELYANTI HUB</div><h1>{{ code }}</h1><p class="muted">{{ message }}</p><a class="back-link" href="{{ url_for('home') }}">Retour à l'accueil →</a></main></body></html>
+
+{% extends "base.html" %}
+
+{% block title %}Erreur {{ code }} · Kelyanti Hub{% endblock %}
+
+{% block content %}
+
+<div class="error-container">
+
+    <div class="error-icon">!</div>
+
+    <h1>Erreur {{ code }}</h1>
+
+    <p>{{ message }}</p>
+
+    <a href="{{ url_for('home') }}" class="error-button">
+        Retour au tableau de bord
+    </a>
+
+</div>
+
+{% endblock %}

@@ -1,0 +1,12 @@
+{
+  "name": "Kelyanti Hub",
+  "short_name": "Kelyanti",
+  "description": "Ton espace numérique Kelyanti Hub",
+  "lang": "fr-FR",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#090d18",
+  "theme_color": "#090d18",
+  "icons": [{"src": "/static/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable"}]
+}

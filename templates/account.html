@@ -1,56 +1,77 @@
 
 {% extends "base.html" %}
 
-{% block title %}Mon compte · Kelyanti Hub{% endblock %}
-
 {% block content %}
-
-<div class="page-header">
-    <h1>Mon compte</h1>
-    <p>Bienvenue dans ton espace personnel.</p>
+<div class="page-heading">
+    <div>
+        <span class="eyebrow">ESPACE PERSONNEL</span>
+        <h1>Mon compte</h1>
+        <p>Retrouve les informations de ton compte.</p>
+    </div>
 </div>
 
-<section class="panel account-panel">
-
-    <div class="account-avatar">
-        {{ session.get('username', 'U')[0]|upper }}
-    </div>
-
-    <h2>{{ session.get('username') }}</h2>
-
-    <p>
-        {% if session.get('role') == 'admin' %}
-            Administrateur
-        {% else %}
-            Membre
-        {% endif %}
-    </p>
-
-    <div class="account-information">
-
-        <div class="account-information-row">
-            <span>Nom d'utilisateur</span>
-            <strong>{{ session.get('username') }}</strong>
+<section class="panel">
+    <div class="account-profile">
+        <div class="account-avatar">
+            {{ session.username[:1]|upper }}
         </div>
 
-        <div class="account-information-row">
-            <span>Type de compte</span>
-            <strong>
-                {% if session.get('role') == 'admin' %}
+        <div>
+            <h2>{{ session.username }}</h2>
+            <p>
+                {% if session.role == "admin" %}
                     Administrateur
+                {% elif session.role == "moderator" %}
+                    Modérateur
                 {% else %}
                     Membre
                 {% endif %}
-            </strong>
+            </p>
         </div>
-
-        <div class="account-information-row">
-            <span>État du compte</span>
-            <strong class="account-active">Actif</strong>
-        </div>
-
     </div>
-
 </section>
 
+<section class="panel">
+    <h2>Informations du compte</h2>
+
+    <div class="account-details">
+        <p><strong>Identifiant :</strong> {{ session.username }}</p>
+        <p><strong>Grade :</strong>
+            {% if session.role == "admin" %}
+                Administrateur
+            {% elif session.role == "moderator" %}
+                Modérateur
+            {% else %}
+                Membre
+            {% endif %}
+        </p>
+        <p><strong>État :</strong> Actif</p>
+    </div>
+</section>
+
+{% if session.role != "admin" %}
+<section class="panel">
+    <h2>🔐 Sécurité du compte</h2>
+
+    <form method="POST" action="{{ url_for('change_own_password') }}" class="form-stack">
+        <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+
+        <label for="current_password">Mot de passe actuel</label>
+        <input id="current_password" name="current_password"
+               type="password" required>
+
+        <label for="new_password">Nouveau mot de passe</label>
+        <input id="new_password" name="new_password"
+               type="password" minlength="10" required>
+
+        <label for="confirm_password">Confirmer le nouveau mot de passe</label>
+        <input id="confirm_password" name="confirm_password"
+               type="password" minlength="10" required>
+
+        <button type="submit" class="btn-primary">
+            Modifier mon mot de passe
+        </button>
+    </form>
+</section>
+{% endif %}
 {% endblock %}

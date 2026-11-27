@@ -1,1 +1,122 @@
 
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>Gestion des membres</h1>
+        <p>Crée et gère les comptes Kelyanti Hub.</p>
+    </div>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, message in messages %}
+        <div class="notice {{ category }}">{{ message }}</div>
+    {% endfor %}
+{% endwith %}
+
+<section class="panel">
+    <h2>Ajouter un membre</h2>
+
+    <form method="POST" action="{{ url_for('create_member') }}">
+        <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+
+        <label for="username">Nom d'utilisateur</label>
+        <input
+            id="username"
+            name="username"
+            type="text"
+            minlength="3"
+            maxlength="30"
+            required
+            placeholder="Exemple : membre01"
+        >
+
+        <label for="password">Mot de passe</label>
+        <input
+            id="password"
+            name="password"
+            type="password"
+            minlength="10"
+            required
+            placeholder="10 caractères minimum"
+        >
+
+        <button type="submit">Créer le compte</button>
+    </form>
+</section>
+
+<section class="panel">
+    <h2>Liste des membres ({{ members|length }})</h2>
+
+    {% if members %}
+        {% for member in members %}
+            <div class="member-card">
+                <div class="member-info">
+                    <strong>{{ member.username }}</strong>
+
+                    {% if member.active %}
+                        <span class="member-status active">Actif</span>
+                    {% else %}
+                        <span class="member-status inactive">Désactivé</span>
+                    {% endif %}
+
+                    <small>Créé le : {{ member.created_at }}</small>
+                </div>
+
+                <div class="member-actions">
+                    <form
+                        method="POST"
+                        action="{{ url_for('toggle_member', member_id=member.id) }}"
+                    >
+                        <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+
+                        <button type="submit">
+                            {% if member.active %}
+                                Désactiver
+                            {% else %}
+                                Réactiver
+                            {% endif %}
+                        </button>
+                    </form>
+
+                    <details>
+                        <summary>Changer le mot de passe</summary>
+
+                        <form
+                            method="POST"
+                            action="{{ url_for('change_member_password', member_id=member.id) }}"
+                        >
+                            <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+
+                            <input
+                                type="password"
+                                name="password"
+                                minlength="10"
+                                required
+                                placeholder="Nouveau mot de passe"
+                            >
+
+                            <button type="submit">Enregistrer</button>
+                        </form>
+                    </details>
+
+                    <form
+                        method="POST"
+                        action="{{ url_for('delete_member', member_id=member.id) }}"
+                        onsubmit="return confirm('Supprimer définitivement ce membre ?')"
+                    >
+                        <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+
+                        <button type="submit" class="danger">
+                            Supprimer
+                        </button>
+                    </form>
+                </div>
+            </div>
+        {% endfor %}
+    {% else %}
+        <p>Aucun membre pour le moment.</p>
+    {% endif %}
+</section>
+{% endblock %}

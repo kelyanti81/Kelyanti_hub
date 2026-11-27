@@ -1,22 +1,20 @@
 
 {
-  "id": "/",
   "name": "Kelyanti Hub",
   "short_name": "Kelyanti",
-  "description": "Ton espace personnel Kelyanti Hub",
-  "lang": "fr",
+  "description": "Espace personnel Kelyanti Hub",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
+  "background_color": "#0c0b13",
+  "theme_color": "#8b5cf6",
   "orientation": "any",
-  "background_color": "#0c0c14",
-  "theme_color": "#8855ff",
   "icons": [
     {
       "src": "/static/icon.svg",
       "sizes": "any",
       "type": "image/svg+xml",
-      "purpose": "any"
+      "purpose": "any maskable"
     }
   ]
 }

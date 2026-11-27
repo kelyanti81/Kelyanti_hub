@@ -1,34 +1,55 @@
-<!doctype html>
-<html lang="fr">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#090d18">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="Kelyanti Hub">
-  <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
-  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='icon.svg') }}">
-  <link rel="apple-touch-icon" href="{{ url_for('static', filename='apple-touch-icon.png') }}">
-  <title>Connexion • Kelyanti Hub</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-</head>
-<body class="login-page">
-  <main class="login-card">
-    <a class="brand login-brand" href="/"><span class="brand-mark">K</span><span>KELYANTI <small>HUB</small></span></a>
-    <div class="eyebrow">BIENVENUE</div>
-    <h1>Content de te revoir.</h1>
-    <p class="muted">Connecte-toi pour accéder à ton espace personnel.</p>
-    {% if error %}<div class="alert">{{ error }}</div>{% endif %}
-    <form method="post">
-      <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
-      <label for="username">Identifiant</label>
-      <input id="username" name="username" autocomplete="username" placeholder="Ton identifiant" required>
-      <label for="password">Mot de passe</label>
-      <input id="password" name="password" type="password" autocomplete="current-password" placeholder="Ton mot de passe" required>
-      <button type="submit">Se connecter <span>→</span></button>
+
+{% extends "base.html" %}
+
+{% block title %}Connexion · Kelyanti Hub{% endblock %}
+
+{% block login_content %}
+
+<div class="login-card">
+
+    <div class="login-logo">
+        <div class="brand-icon">K</div>
+    </div>
+
+    <h1>Bienvenue sur Kelyanti Hub</h1>
+    <p>Connecte-toi pour accéder à ton espace.</p>
+
+    {% if error %}
+        <div class="notice error">{{ error }}</div>
+    {% endif %}
+
+    <form method="POST" action="{{ url_for('login') }}">
+
+        <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+
+        <label for="username">Nom d'utilisateur</label>
+        <input
+            id="username"
+            name="username"
+            type="text"
+            placeholder="Ton identifiant"
+            autocomplete="username"
+            required
+        >
+
+        <label for="password">Mot de passe</label>
+        <input
+            id="password"
+            name="password"
+            type="password"
+            placeholder="Ton mot de passe"
+            autocomplete="current-password"
+            required
+        >
+
+        <button type="submit">Se connecter</button>
+
     </form>
-    <div class="login-foot"><span class="online-dot"></span> Connexion sécurisée</div>
-  </main>
-</body>
-</html>
+
+    <div class="login-footer">
+        Kelyanti Hub · Espace sécurisé
+    </div>
+
+</div>
+
+{% endblock %}

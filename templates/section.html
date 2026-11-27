@@ -1,81 +1,151 @@
 
 {% extends "base.html" %}
 
-{% block title %}{{ title }} · Kelyanti Hub{% endblock %}
-
 {% block content %}
 
-<div class="page-header">
-    <h1>{{ title }}</h1>
-    <p>{{ description }}</p>
+<div class="page-heading">
+    <div>
+        <span class="eyebrow">KELYANTI HUB</span>
+        <h1>{{ title }}</h1>
+        <p>{{ description }}</p>
+    </div>
 </div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, message in messages %}
+        <div class="notice {{ category }}">{{ message }}</div>
+    {% endfor %}
+{% endwith %}
 
 {% if page == "dashboard" %}
 
+<section class="dashboard-welcome panel">
+    <div>
+        <span class="eyebrow">TON ESPACE PERSONNEL</span>
+        <h2>Bienvenue, {{ session.username }} !</h2>
+        <p>Retrouve rapidement tes outils Kelyanti Hub.</p>
+    </div>
+    <div class="welcome-icon">K</div>
+</section>
+
 <div class="dashboard-grid">
-
-    <a href="{{ url_for('section', page='minecraft') }}" class="dashboard-card">
-        <div class="dashboard-icon">⛏</div>
-        <h2>Minecraft</h2>
-        <p>Accède aux outils de ton serveur Minecraft.</p>
-        <span>Ouvrir →</span>
+    <a class="dashboard-card" href="{{ url_for('section', page='minecraft') }}">
+        <span class="card-icon">⛏️</span>
+        <h3>Minecraft</h3>
+        <p>Accède à ton espace Minecraft.</p>
     </a>
 
-    <a href="{{ url_for('section', page='arduino') }}" class="dashboard-card">
-        <div class="dashboard-icon">⌁</div>
-        <h2>Arduino</h2>
+    <a class="dashboard-card" href="{{ url_for('section', page='arduino') }}">
+        <span class="card-icon">⚡</span>
+        <h3>Arduino</h3>
         <p>Retrouve tes projets électroniques.</p>
-        <span>Ouvrir →</span>
     </a>
 
-    <a href="{{ url_for('section', page='account') }}" class="dashboard-card">
-        <div class="dashboard-icon">♙</div>
-        <h2>Mon compte</h2>
-        <p>Consulte ton espace personnel.</p>
-        <span>Ouvrir →</span>
+    <a class="dashboard-card" href="{{ url_for('section', page='account') }}">
+        <span class="card-icon">👤</span>
+        <h3>Mon compte</h3>
+        <p>Gère tes informations personnelles.</p>
     </a>
 
-    {% if session.get('role') == 'admin' %}
-    <a href="{{ url_for('members') }}" class="dashboard-card">
-        <div class="dashboard-icon">👥</div>
-        <h2>Membres</h2>
-        <p>Gère les comptes des utilisateurs.</p>
-        <span>Gérer →</span>
+    <a class="dashboard-card" href="{{ url_for('section', page='settings') }}">
+        <span class="card-icon">⚙️</span>
+        <h3>Paramètres</h3>
+        <p>Personnalise ton espace.</p>
+    </a>
+
+    {% if session.role == "admin" %}
+    <a class="dashboard-card" href="{{ url_for('members') }}">
+        <span class="card-icon">👥</span>
+        <h3>Membres</h3>
+        <p>Gère les comptes et les grades.</p>
     </a>
     {% endif %}
-
 </div>
 
 {% elif page == "minecraft" %}
 
-<div class="panel">
-    <h2>Serveur Minecraft</h2>
-    <p>
-        Cet espace accueillera les outils de gestion du serveur Minecraft.
-    </p>
-    <p>
-        La connexion au serveur Dell sera ajoutée dans une prochaine étape.
-    </p>
-</div>
+<section class="panel">
+    <h2>⛏️ Espace Minecraft</h2>
+    <p>Les outils de ton serveur Minecraft seront regroupés ici.</p>
+    <p>Cette section pourra accueillir la console, les joueurs et les statistiques.</p>
+</section>
 
 {% elif page == "arduino" %}
 
-<div class="panel">
-    <h2>Mes projets Arduino</h2>
-    <p>
-        Cet espace permettra de retrouver tes projets Arduino,
-        tes programmes et tes notes.
-    </p>
-</div>
+<section class="panel">
+    <h2>⚡ Espace Arduino</h2>
+    <p>Centralise ici tes projets, tes notes et tes programmes Arduino.</p>
+</section>
 
 {% elif page == "settings" %}
 
-<div class="panel">
-    <h2>Paramètres</h2>
-    <p>
-        Les paramètres généraux de Kelyanti Hub seront disponibles ici.
-    </p>
-</div>
+<section class="panel">
+    <h2>🎨 Personnalisation</h2>
+    <p>Choisis la couleur de ton espace personnel.</p>
+
+    {% if session.role != "admin" %}
+    <form method="POST" action="{{ url_for('change_theme') }}" class="form-stack">
+        <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+
+        <label for="theme_color">Ma couleur</label>
+        <input
+            id="theme_color"
+            type="color"
+            name="theme_color"
+            value="{{ theme_color }}"
+            class="color-picker"
+        >
+
+        <button type="submit" class="btn-primary">
+            Enregistrer ma couleur
+        </button>
+    </form>
+    {% else %}
+    <p>La personnalisation du compte administrateur sera disponible dans une prochaine étape.</p>
+    {% endif %}
+</section>
+
+{% elif page == "account" %}
+
+<section class="panel">
+    <h2>👤 Mon compte</h2>
+
+    <div class="account-details">
+        <p><strong>Identifiant :</strong> {{ session.username }}</p>
+        <p><strong>Grade :</strong>
+            {% if session.role == "admin" %}
+                Administrateur
+            {% elif session.role == "moderator" %}
+                Modérateur
+            {% else %}
+                Membre
+            {% endif %}
+        </p>
+    </div>
+</section>
+
+{% if session.role != "admin" %}
+<section class="panel">
+    <h2>🔐 Modifier mon mot de passe</h2>
+
+    <form method="POST" action="{{ url_for('change_own_password') }}" class="form-stack">
+        <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+
+        <label for="current_password">Mot de passe actuel</label>
+        <input id="current_password" type="password" name="current_password" required>
+
+        <label for="new_password">Nouveau mot de passe</label>
+        <input id="new_password" type="password" name="new_password"
+               minlength="10" required>
+
+        <label for="confirm_password">Confirmer le nouveau mot de passe</label>
+        <input id="confirm_password" type="password" name="confirm_password"
+               minlength="10" required>
+
+        <button type="submit" class="btn-primary">Changer mon mot de passe</button>
+    </form>
+</section>
+{% endif %}
 
 {% endif %}
 

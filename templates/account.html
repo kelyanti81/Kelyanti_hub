@@ -1,0 +1,56 @@
+
+{% extends "base.html" %}
+
+{% block title %}Mon compte · Kelyanti Hub{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+    <h1>Mon compte</h1>
+    <p>Bienvenue dans ton espace personnel.</p>
+</div>
+
+<section class="panel account-panel">
+
+    <div class="account-avatar">
+        {{ session.get('username', 'U')[0]|upper }}
+    </div>
+
+    <h2>{{ session.get('username') }}</h2>
+
+    <p>
+        {% if session.get('role') == 'admin' %}
+            Administrateur
+        {% else %}
+            Membre
+        {% endif %}
+    </p>
+
+    <div class="account-information">
+
+        <div class="account-information-row">
+            <span>Nom d'utilisateur</span>
+            <strong>{{ session.get('username') }}</strong>
+        </div>
+
+        <div class="account-information-row">
+            <span>Type de compte</span>
+            <strong>
+                {% if session.get('role') == 'admin' %}
+                    Administrateur
+                {% else %}
+                    Membre
+                {% endif %}
+            </strong>
+        </div>
+
+        <div class="account-information-row">
+            <span>État du compte</span>
+            <strong class="account-active">Actif</strong>
+        </div>
+
+    </div>
+
+</section>
+
+{% endblock %}

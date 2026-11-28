@@ -1,8 +1,11 @@
 
 {% extends "base.html" %}
 {% block title %}{{ page|capitalize }} - Kelyanti Hub{% endblock %}
+
 {% block content %}
+
 {% if page == 'dashboard' %}
+
 <section class="page-heading">
     <span class="eyebrow">ESPACE PERSONNEL</span>
     <h1>Bienvenue, {{ display_name }} !</h1>
@@ -11,169 +14,280 @@
 
 <div class="panel" id="dell-dashboard-status">
     <h2>État du serveur Dell</h2>
+
     <div class="status-grid">
         <div>
             <strong>Ordinateur Dell</strong>
-            <div id="dell-online-label" class="big-status {% if dell_status.online %}good{% else %}bad{% endif %}">
+            <div id="dell-online-label"
+                 class="big-status {% if dell_status.online %}good{% else %}bad{% endif %}">
                 {% if dell_status.online %}En ligne{% else %}Hors ligne{% endif %}
             </div>
+
             <p id="dell-details">
                 {% if dell_status.online %}
-                {{ dell_status.data.hostname }} · CPU {{ dell_status.data.cpu_percent }} % · RAM {{ dell_status.data.memory_percent }} %
+                    {{ dell_status.data.hostname }}
+                    · CPU {{ dell_status.data.cpu_percent }} %
+                    · RAM {{ dell_status.data.memory_percent }} %
                 {% else %}
-                Aucun signal récent reçu de l'agent Dell.
+                    Aucun signal récent reçu de l'agent Dell.
                 {% endif %}
             </p>
         </div>
+
         <div>
             <strong>Serveur Minecraft</strong>
-            <div id="minecraft-online-label" class="big-status {% if dell_status.online and dell_status.minecraft %}good{% else %}bad{% endif %}">
-                {% if dell_status.online and dell_status.minecraft %}En ligne{% else %}Hors ligne{% endif %}
+            <div id="minecraft-online-label"
+                 class="big-status {% if dell_status.online and dell_status.minecraft %}good{% else %}bad{% endif %}">
+                {% if dell_status.online and dell_status.minecraft %}
+                    En ligne
+                {% else %}
+                    Hors ligne
+                {% endif %}
             </div>
             <p>État de la session Minecraft sur le Dell.</p>
         </div>
     </div>
+
     <p id="dell-last-update" class="field-help">
-        {% if dell_status.online %}Dernier signal : il y a {{ dell_status.age }} seconde(s).{% else %}En attente du prochain signal.{% endif %}
+        {% if dell_status.online %}
+            Dernier signal : il y a {{ dell_status.age }} seconde(s).
+        {% else %}
+            En attente du prochain signal.
+        {% endif %}
     </p>
 </div>
 
 <div class="dashboard-grid">
+
+    {% if navigation_items|selectattr('key','equalto','minecraft')|list %}
     <a class="dashboard-card" href="{{ url_for('minecraft') }}">
-        <div class="card-icon">▣</div>
+        <div class="card-icon">
+            <svg viewBox="0 0 24 24"><path d="M4 4h16v16H4zM4 9h16M9 4v5m6-5v5M9 20v-6h6v6"/></svg>
+        </div>
         <h2>Minecraft</h2>
         <p>État du serveur Dell et espace Minecraft.</p>
         <span class="card-link">Ouvrir l'espace →</span>
     </a>
+    {% endif %}
+
+    {% if navigation_items|selectattr('key','equalto','arduino')|list %}
     <a class="dashboard-card" href="{{ url_for('arduino') }}">
-        <div class="card-icon">⌁</div>
+        <div class="card-icon">
+            <svg viewBox="0 0 24 24"><path d="M8 8a4 4 0 1 0 0 8h8a4 4 0 1 0 0-8zM2 12h4m12 0h4M12 5v3m0 8v3"/></svg>
+        </div>
         <h2>Arduino</h2>
         <p>Tes projets et outils Arduino.</p>
         <span class="card-link">Ouvrir l'espace →</span>
     </a>
+    {% endif %}
+
+    {% if navigation_items|selectattr('key','equalto','account')|list %}
     <a class="dashboard-card" href="{{ url_for('account') }}">
-        <div class="card-icon">◉</div>
+        <div class="card-icon">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>
+        </div>
         <h2>Mon compte</h2>
         <p>Consulte tes informations personnelles.</p>
         <span class="card-link">Voir mon compte →</span>
     </a>
+    {% endif %}
+
+    {% if navigation_items|selectattr('key','equalto','settings')|list %}
     <a class="dashboard-card" href="{{ url_for('settings') }}">
-        <div class="card-icon">⚙</div>
+        <div class="card-icon">
+            <svg viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="3"/>
+                <path d="M19 13.5a7 7 0 0 0 0-3l2-1.5-2-3.5-2.3 1a7 7 0 0 0-2.5-1.4L14 3h-4l-.3 2.1a7 7 0 0 0-2.5 1.4l-2.3-1-2 3.5 2 1.5a7 7 0 0 0 0 3l-2 1.5 2 3.5 2.3-1a7 7 0 0 0 2.5 1.4L10 21h4l.3-2.1a7 7 0 0 0 2.5-1.4l2.3 1 2-3.5z"/>
+            </svg>
+        </div>
         <h2>Paramètres</h2>
-        <p>Personnalise ton profil.</p>
-        <span class="card-link">Personnaliser →</span>
-    </a>
-    {% if is_admin %}
-    <a class="dashboard-card" href="{{ url_for('members') }}">
-        <div class="card-icon">♙</div>
-        <h2>Gestion des membres</h2>
-        <p>Comptes et présence des membres.</p>
-        <span class="card-link">Gérer les membres →</span>
-    </a>
-    <a class="dashboard-card" href="{{ url_for('admin_settings') }}">
-        <div class="card-icon">✦</div>
-        <h2>Personnalisation</h2>
-        <p>Modifie les onglets et le thème du site.</p>
-        <span class="card-link">Personnaliser le site →</span>
+        <p>Personnalise ton profil et tes préférences.</p>
+        <span class="card-link">Ouvrir les paramètres →</span>
     </a>
     {% endif %}
+
 </div>
 
 {% elif page == 'minecraft' %}
+
 <section class="page-heading">
     <span class="eyebrow">SURVEILLANCE</span>
     <h1>Serveur Dell</h1>
     <p>État transmis automatiquement par l'agent installé sur le Dell.</p>
 </section>
+
 <div class="status-grid">
     <div class="panel">
         <h2>Ordinateur Dell</h2>
         <div class="big-status {% if dell_status.online %}good{% else %}bad{% endif %}">
-            {% if dell_status.online %}En ligne{% else %}Hors ligne / données expirées{% endif %}
+            {% if dell_status.online %}
+                En ligne
+            {% else %}
+                Hors ligne / données expirées
+            {% endif %}
         </div>
+
         {% if dell_status.online %}
-        <p>Nom : {{ dell_status.data.hostname }}</p>
-        <p>Processeur : {{ dell_status.data.cpu_percent }} %</p>
-        <p>Mémoire : {{ dell_status.data.memory_percent }} % ({{ dell_status.data.memory_used_gb }} / {{ dell_status.data.memory_total_gb }} Go)</p>
-        <p>Démarré depuis : {{ dell_status.data.uptime_seconds // 3600 }} h</p>
-        <p>Dernier signal : il y a {{ dell_status.age }} seconde(s)</p>
+            <p>Nom : {{ dell_status.data.hostname }}</p>
+            <p>Processeur : {{ dell_status.data.cpu_percent }} %</p>
+            <p>Mémoire : {{ dell_status.data.memory_percent }} %
+                ({{ dell_status.data.memory_used_gb }} / {{ dell_status.data.memory_total_gb }} Go)</p>
+            <p>Démarré depuis : {{ dell_status.data.uptime_seconds // 3600 }} h</p>
+            <p>Dernier signal : il y a {{ dell_status.age }} seconde(s)</p>
         {% else %}
-        <p>Aucun signal récent reçu. Vérifie que le Dell et son agent sont démarrés.</p>
+            <p>Aucun signal récent reçu. Vérifie que le Dell et son agent sont démarrés.</p>
         {% endif %}
     </div>
+
     <div class="panel">
         <h2>Serveur Minecraft</h2>
         <div class="big-status {% if dell_status.online and dell_status.minecraft %}good{% else %}bad{% endif %}">
-            {% if dell_status.online and dell_status.minecraft %}Détecté en fonctionnement{% else %}Non détecté{% endif %}
+            {% if dell_status.online and dell_status.minecraft %}
+                Détecté en fonctionnement
+            {% else %}
+                Non détecté
+            {% endif %}
         </div>
         <p>L'agent vérifie la session tmux configurée sur le Dell.</p>
     </div>
 </div>
 
 {% elif page == 'arduino' %}
+
 <section class="page-heading">
     <span class="eyebrow">APPLICATION</span>
     <h1>Arduino</h1>
     <p>Bienvenue dans ton espace Arduino.</p>
 </section>
-<div class="panel"><h2>Espace Arduino</h2><p>Cette section accueillera tes projets, notes et outils Arduino.</p></div>
+
+<div class="panel">
+    <h2>Espace Arduino</h2>
+    <p>Cette section accueillera tes projets, notes et outils Arduino.</p>
+</div>
 
 {% elif page == 'account' %}
+
 <section class="page-heading">
     <span class="eyebrow">ESPACE PERSONNEL</span>
     <h1>Mon compte</h1>
     <p>Consulte les informations de ton compte.</p>
 </section>
+
 <div class="panel">
     <div class="account-profile">
         <div class="account-avatar">{{ display_name[:1]|upper }}</div>
         <div>
             <h2>{{ display_name }}</h2>
-            <p>{% if is_admin %}Administrateur{% elif current_user.grade == 'moderator' %}Modérateur{% else %}Membre{% endif %}</p>
+            <p>
+                {% if is_admin %}
+                    Administrateur
+                {% elif current_user.grade == 'moderator' %}
+                    Modérateur
+                {% else %}
+                    Membre
+                {% endif %}
+            </p>
         </div>
     </div>
-    <div class="info-row"><span>Sous-pseudo</span><strong>{{ display_name }}</strong></div>
-    <div class="info-row"><span>Identifiant</span><strong>{{ current_user.username }}</strong></div>
-    <div class="info-row"><span>Grade</span><strong>{% if is_admin %}Administrateur{% else %}{{ current_user.grade }}{% endif %}</strong></div>
+
+    <div class="info-row">
+        <span>Sous-pseudo</span>
+        <strong>{{ display_name }}</strong>
+    </div>
+    <div class="info-row">
+        <span>Identifiant</span>
+        <strong>{{ current_user.username }}</strong>
+    </div>
+    <div class="info-row">
+        <span>Grade</span>
+        <strong>{% if is_admin %}Administrateur{% else %}{{ current_user.grade }}{% endif %}</strong>
+    </div>
 </div>
+
 <div class="panel">
     <h2>Changer mon mot de passe</h2>
+
     {% if is_admin %}
-    <p>Le mot de passe administrateur se modifie dans les variables Render.</p>
+        <p>Le mot de passe administrateur se modifie dans les variables Render.</p>
     {% else %}
-    <form method="POST" action="{{ url_for('change_password') }}" class="form-stack">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <label>Ancien mot de passe</label>
-        <input type="password" name="old_password" required>
-        <label>Nouveau mot de passe</label>
-        <input type="password" name="new_password" minlength="8" required>
-        <button class="btn-primary">Modifier le mot de passe</button>
-    </form>
+        <form method="POST" action="{{ url_for('change_password') }}" class="form-stack">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <label>Ancien mot de passe</label>
+            <input type="password" name="old_password" required>
+            <label>Nouveau mot de passe</label>
+            <input type="password" name="new_password" minlength="8" required>
+            <button class="btn-primary">Modifier le mot de passe</button>
+        </form>
     {% endif %}
 </div>
 
 {% elif page == 'settings' %}
+
 <section class="page-heading">
-    <span class="eyebrow">PERSONNALISATION</span>
+    <span class="eyebrow">ESPACE PERSONNEL</span>
     <h1>Paramètres</h1>
-    <p>Personnalise ton profil.</p>
+    <p>Gère ton profil et tes préférences Kelyanti Hub.</p>
 </section>
+
 <div class="panel">
     <h2>Mon profil</h2>
+
     <form method="POST" action="{{ url_for('update_profile') }}" class="form-stack">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
         <label>Identifiant de connexion</label>
         <input value="{{ current_user.username }}" disabled>
+
         <label>Mon sous-pseudo</label>
         <input name="display_name" value="{{ display_name }}" maxlength="30" required>
+
         <label>Ma couleur personnelle</label>
         <div class="color-picker">
             <input type="color" name="theme_color" value="{{ theme_color }}">
             <span>Choisis ta couleur personnelle.</span>
         </div>
+
         <button class="btn-primary">Enregistrer mes paramètres</button>
     </form>
 </div>
+
+{% if is_admin %}
+<div class="panel settings-admin-panel">
+    <h2>Administration</h2>
+    <p>Ces outils sont réservés à l'administrateur.</p>
+
+    <div class="settings-shortcuts">
+        <a class="settings-shortcut" href="{{ url_for('admin_settings') }}">
+            <span class="settings-shortcut-icon">
+                <svg viewBox="0 0 24 24">
+                    <circle cx="12" cy="12" r="4"/>
+                    <path d="M12 2v2m0 16v2M2 12h2m16 0h2"/>
+                </svg>
+            </span>
+            <span>
+                <strong>Personnalisation du site</strong>
+                <small>Modifier les onglets, leur affichage et le thème général.</small>
+            </span>
+            <span class="shortcut-arrow">→</span>
+        </a>
+
+        <a class="settings-shortcut" href="{{ url_for('members') }}">
+            <span class="settings-shortcut-icon">
+                <svg viewBox="0 0 24 24">
+                    <circle cx="9" cy="8" r="3"/>
+                    <path d="M3 20a6 6 0 0 1 12 0m1-11a3 3 0 0 1 0 6m1 2a5 5 0 0 1 4 3"/>
+                </svg>
+            </span>
+            <span>
+                <strong>Gestion des membres</strong>
+                <small>Créer des comptes, gérer les grades et voir les membres en ligne.</small>
+            </span>
+            <span class="shortcut-arrow">→</span>
+        </a>
+    </div>
+</div>
+{% endif %}
+
 <div class="panel">
     <h2>Session</h2>
     <form method="POST" action="{{ url_for('logout') }}">
@@ -181,5 +295,6 @@
         <button class="btn-danger">Se déconnecter</button>
     </form>
 </div>
+
 {% endif %}
 {% endblock %}

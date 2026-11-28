@@ -1,16 +1,14 @@
-
 import os
 import re
-import hmac
-import secrets
 import sqlite3
+import secrets
 
 from pathlib import Path
 from functools import wraps
 
 from flask import (
-    Flask, abort, redirect, render_template,
-    request, session, url_for, flash
+    Flask, render_template, request, redirect,
+    url_for, session, flash, abort
 )
 from werkzeug.security import generate_password_hash, check_password_hash
 
@@ -18,231 +16,192 @@ from werkzeug.security import generate_password_hash, check_password_hash
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY") or secrets.token_hex(32)
 
-app.config.update(
-    SESSION_COOKIE_HTTPONLY=True,
-    SESSION_COOKIE_SAMESITE="Lax",
-    SESSION_COOKIE_SECURE=os.environ.get("RENDER") == "true",
-)
+BASE_DIR = Path(__file__).resolve().parent
+INSTANCE_DIR = BASE_DIR / "instance"
+INSTANCE_DIR.mkdir(exist_ok=True)
 
-HUB_USERNAME = os.environ.get("HUB_USERNAME", "admin")
-HUB_PASSWORD = os.environ.get("HUB_PASSWORD", "")
-DATABASE_PATH = Path(os.environ.get(
-    "DATABASE_PATH", "instance/kelyanti.sqlite3"
-))
+DB_PATH = INSTANCE_DIR / "kelyanti.sqlite3"
+
+ADMIN_USERNAME = os.environ.get("HUB_USERNAME", "admin")
+ADMIN_PASSWORD = os.environ.get("HUB_PASSWORD", "")
 
 DEFAULT_COLOR = "#8b5cf6"
 
-PAGES = {
-    "dashboard": ("Tableau de bord", "Bienvenue sur ton espace Kelyanti Hub."),
-    "minecraft": ("Minecraft", "Retrouve ici tes outils Minecraft."),
-    "arduino": ("Arduino", "Centralise tes projets Arduino."),
-    "settings": ("Paramètres", "Personnalise ton espace."),
-    "account": ("Mon compte", "Gère tes informations personnelles."),
-}
 
-
-# -------------------- BASE DE DONNÉES --------------------
-
-def get_db():
-    DATABASE_PATH.parent.mkdir(parents=True, exist_ok=True)
-    db = sqlite3.connect(DATABASE_PATH)
+def connect_db():
+    db = sqlite3.connect(DB_PATH)
     db.row_factory = sqlite3.Row
     return db
 
 
 def init_db():
-    with get_db() as db:
+    with connect_db() as db:
         db.execute("""
             CREATE TABLE IF NOT EXISTS members (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                username TEXT NOT NULL COLLATE NOCASE UNIQUE,
+                username TEXT UNIQUE NOT NULL,
                 password_hash TEXT NOT NULL,
+                grade TEXT NOT NULL DEFAULT 'member',
                 active INTEGER NOT NULL DEFAULT 1,
-                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
-
-        db.execute("""
-            CREATE TABLE IF NOT EXISTS settings (
-                name TEXT PRIMARY KEY,
-                value TEXT NOT NULL
+                display_name TEXT NOT NULL DEFAULT '',
+                theme_color TEXT NOT NULL DEFAULT '#8b5cf6'
             )
         """)
 
         columns = {
             row["name"]
-            for row in db.execute("PRAGMA table_info(members)")
+            for row in db.execute("PRAGMA table_info(members)").fetchall()
         }
 
-        if "grade" not in columns:
-            db.execute("""
-                ALTER TABLE members
-                ADD COLUMN grade TEXT NOT NULL DEFAULT 'member'
-            """)
+        migrations = {
+            "grade": "ALTER TABLE members ADD COLUMN grade TEXT NOT NULL DEFAULT 'member'",
+            "active": "ALTER TABLE members ADD COLUMN active INTEGER NOT NULL DEFAULT 1",
+            "display_name": "ALTER TABLE members ADD COLUMN display_name TEXT NOT NULL DEFAULT ''",
+            "theme_color": "ALTER TABLE members ADD COLUMN theme_color TEXT NOT NULL DEFAULT '#8b5cf6'",
+        }
 
-        if "theme_color" not in columns:
-            db.execute("""
-                ALTER TABLE members
-                ADD COLUMN theme_color TEXT NOT NULL DEFAULT '#8b5cf6'
-            """)
+        for column, sql in migrations.items():
+            if column not in columns:
+                db.execute(sql)
 
         db.execute("""
-            INSERT OR IGNORE INTO settings (name, value)
-            VALUES ('admin_theme_color', '#8b5cf6')
+            CREATE TABLE IF NOT EXISTS settings (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL
+            )
         """)
+
+        db.commit()
 
 
 init_db()
 
 
-# -------------------- CSRF --------------------
-
-def csrf_token():
-    if "_csrf" not in session:
-        session["_csrf"] = secrets.token_urlsafe(32)
-    return session["_csrf"]
-
-
-app.jinja_env.globals["csrf_token"] = csrf_token
+def get_setting(key, default=""):
+    with connect_db() as db:
+        row = db.execute(
+            "SELECT value FROM settings WHERE key = ?",
+            (key,)
+        ).fetchone()
+    return row["value"] if row else default
 
 
-def check_csrf():
-    submitted = request.form.get("_csrf", "")
-    expected = session.get("_csrf", "")
-    if not expected or not hmac.compare_digest(submitted, expected):
-        abort(400, "Formulaire expiré. Recharge la page.")
+def set_setting(key, value):
+    with connect_db() as db:
+        db.execute("""
+            INSERT INTO settings (key, value)
+            VALUES (?, ?)
+            ON CONFLICT(key) DO UPDATE SET value = excluded.value
+        """, (key, value))
+        db.commit()
 
 
-# -------------------- COMPTE ET COULEUR --------------------
+def get_member(username):
+    with connect_db() as db:
+        return db.execute(
+            "SELECT * FROM members WHERE username = ?",
+            (username,)
+        ).fetchone()
 
-def current_member():
-    member_id = session.get("member_id")
-    if not member_id:
+
+def current_user():
+    username = session.get("username")
+    if not username:
         return None
 
-    with get_db() as db:
-        return db.execute(
-            "SELECT * FROM members WHERE id = ?", (member_id,)
-        ).fetchone()
+    if session.get("role") == "admin":
+        return {
+            "username": ADMIN_USERNAME,
+            "display_name": get_setting(
+                "admin_display_name", ADMIN_USERNAME
+            ),
+            "grade": "admin",
+            "theme_color": get_setting(
+                "admin_theme_color", DEFAULT_COLOR
+            ),
+            "active": 1
+        }
+
+    return get_member(username)
 
 
-def get_admin_color():
-    with get_db() as db:
-        row = db.execute(
-            "SELECT value FROM settings WHERE name = 'admin_theme_color'"
-        ).fetchone()
-    return row["value"] if row else DEFAULT_COLOR
+def login_required(function):
+    @wraps(function)
+    def wrapper(*args, **kwargs):
+        if not current_user():
+            return redirect(url_for("login"))
+        return function(*args, **kwargs)
+    return wrapper
+
+
+def admin_required(function):
+    @wraps(function)
+    def wrapper(*args, **kwargs):
+        if session.get("role") != "admin":
+            abort(403)
+        return function(*args, **kwargs)
+    return wrapper
+
+
+def csrf_token():
+    if "_csrf_token" not in session:
+        session["_csrf_token"] = secrets.token_hex(24)
+    return session["_csrf_token"]
 
 
 @app.context_processor
-def inject_user_data():
-    color = DEFAULT_COLOR
-    role = session.get("role")
-
-    if session.get("logged_in"):
-        if role == "admin":
-            color = get_admin_color()
-        else:
-            member = current_member()
-            if member:
-                color = member["theme_color"]
-
-    return {"theme_color": color}
-
-
-# -------------------- PERMISSIONS --------------------
-
-def login_required(view):
-    @wraps(view)
-    def wrapped(*args, **kwargs):
-        if not session.get("logged_in"):
-            return redirect(url_for("login"))
-
-        if session.get("role") != "admin":
-            member = current_member()
-
-            if not member or not member["active"]:
-                session.clear()
-                return redirect(url_for("login"))
-
-            session["role"] = member["grade"]
-            session["username"] = member["username"]
-
-        return view(*args, **kwargs)
-    return wrapped
+def inject_globals():
+    user = current_user()
+    return {
+        "current_user": user,
+        "csrf_token": csrf_token,
+        "display_name": (
+            user["display_name"] or user["username"]
+            if user else ""
+        ),
+        "theme_color": (
+            user["theme_color"] if user else DEFAULT_COLOR
+        ),
+        "is_admin": session.get("role") == "admin",
+    }
 
 
-def admin_required(view):
-    @wraps(view)
-    @login_required
-    def wrapped(*args, **kwargs):
-        if session.get("role") != "admin":
-            abort(403)
-        return view(*args, **kwargs)
-    return wrapped
+@app.before_request
+def protect_forms():
+    if request.method == "POST":
+        sent = request.form.get("csrf_token", "")
+        expected = session.get("_csrf_token", "")
+        if not sent or not expected or not secrets.compare_digest(sent, expected):
+            abort(400)
 
 
-# -------------------- PAGES --------------------
+@app.route("/")
+def index():
+    if current_user():
+        return redirect(url_for("dashboard"))
+    return redirect(url_for("login"))
 
-@app.get("/service-worker.js")
-def service_worker():
-    response = app.send_static_file("service-worker.js")
-    response.headers["Service-Worker-Allowed"] = "/"
-    response.headers["Content-Type"] = "application/javascript; charset=utf-8"
-    return response
-
-
-@app.get("/")
-@login_required
-def home():
-    return redirect(url_for("section", page="dashboard"))
-
-
-@app.get("/<page>")
-@login_required
-def section(page):
-    if page not in PAGES:
-        abort(404)
-
-    title, description = PAGES[page]
-    return render_template(
-        "section.html",
-        title=title,
-        description=description,
-        page=page
-    )
-
-
-# -------------------- CONNEXION --------------------
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
-    if session.get("logged_in"):
-        return redirect(url_for("home"))
-
-    error = None
+    if current_user():
+        return redirect(url_for("dashboard"))
 
     if request.method == "POST":
-        check_csrf()
         username = request.form.get("username", "").strip()
         password = request.form.get("password", "")
 
         if (
-            HUB_PASSWORD
-            and hmac.compare_digest(username, HUB_USERNAME)
-            and hmac.compare_digest(password, HUB_PASSWORD)
+            username == ADMIN_USERNAME
+            and ADMIN_PASSWORD
+            and secrets.compare_digest(password, ADMIN_PASSWORD)
         ):
             session.clear()
-            session["logged_in"] = True
-            session["username"] = HUB_USERNAME
+            session["username"] = ADMIN_USERNAME
             session["role"] = "admin"
-            return redirect(url_for("home"))
+            return redirect(url_for("dashboard"))
 
-        with get_db() as db:
-            member = db.execute(
-                "SELECT * FROM members WHERE username = ?",
-                (username,)
-            ).fetchone()
+        member = get_member(username)
 
         if (
             member
@@ -250,225 +209,244 @@ def login():
             and check_password_hash(member["password_hash"], password)
         ):
             session.clear()
-            session["logged_in"] = True
             session["username"] = member["username"]
             session["role"] = member["grade"]
-            session["member_id"] = member["id"]
-            return redirect(url_for("home"))
+            return redirect(url_for("dashboard"))
 
-        error = "Identifiant ou mot de passe incorrect."
+        flash("Identifiant ou mot de passe incorrect.", "error")
 
-    return render_template("login.html", error=error)
+    return render_template("login.html")
 
 
 @app.post("/logout")
 @login_required
 def logout():
-    check_csrf()
     session.clear()
     return redirect(url_for("login"))
 
 
-# -------------------- PERSONNALISATION --------------------
-
-@app.post("/settings/theme")
+@app.route("/dashboard")
 @login_required
-def change_theme():
-    check_csrf()
-    color = request.form.get("theme_color", "").strip()
+def dashboard():
+    return render_template("section.html", page="dashboard")
+
+
+@app.route("/minecraft")
+@login_required
+def minecraft():
+    return render_template("section.html", page="minecraft")
+
+
+@app.route("/arduino")
+@login_required
+def arduino():
+    return render_template("section.html", page="arduino")
+
+
+@app.route("/account")
+@login_required
+def account():
+    return render_template("section.html", page="account")
+
+
+@app.route("/settings")
+@login_required
+def settings():
+    return render_template("section.html", page="settings")
+
+
+@app.post("/settings/profile")
+@login_required
+def update_profile():
+    name = request.form.get("display_name", "").strip()
+    color = request.form.get("theme_color", DEFAULT_COLOR).strip()
+
+    if not name or len(name) > 30:
+        flash("Le sous-pseudo doit contenir entre 1 et 30 caractères.", "error")
+        return redirect(url_for("settings"))
 
     if not re.fullmatch(r"#[0-9a-fA-F]{6}", color):
-        flash("Couleur invalide.", "error")
-        return redirect(url_for("section", page="settings"))
+        flash("La couleur choisie n'est pas valide.", "error")
+        return redirect(url_for("settings"))
 
     if session.get("role") == "admin":
-        with get_db() as db:
-            db.execute(
-                "UPDATE settings SET value = ? WHERE name = 'admin_theme_color'",
-                (color,)
-            )
+        set_setting("admin_display_name", name)
+        set_setting("admin_theme_color", color)
     else:
-        with get_db() as db:
-            db.execute(
-                "UPDATE members SET theme_color = ? WHERE id = ?",
-                (color, session["member_id"])
-            )
+        with connect_db() as db:
+            db.execute("""
+                UPDATE members
+                SET display_name = ?, theme_color = ?
+                WHERE username = ?
+            """, (name, color, session["username"]))
+            db.commit()
 
-    flash("Ta couleur a été enregistrée.", "success")
-    return redirect(url_for("section", page="settings"))
+    flash("Tes paramètres ont été enregistrés.", "success")
+    return redirect(url_for("settings"))
 
-
-# -------------------- MOT DE PASSE PERSONNEL --------------------
 
 @app.post("/account/password")
 @login_required
-def change_own_password():
-    check_csrf()
-
+def change_password():
     if session.get("role") == "admin":
-        flash(
-            "Le mot de passe administrateur se modifie dans les variables Render.",
-            "error"
-        )
-        return redirect(url_for("section", page="account"))
+        flash("Le mot de passe administrateur se modifie dans les variables Render.", "error")
+        return redirect(url_for("account"))
 
-    member = current_member()
-    current_password = request.form.get("current_password", "")
+    old_password = request.form.get("old_password", "")
     new_password = request.form.get("new_password", "")
-    confirmation = request.form.get("confirm_password", "")
 
-    if not member or not check_password_hash(
-        member["password_hash"], current_password
-    ):
-        flash("Mot de passe actuel incorrect.", "error")
-    elif len(new_password) < 10:
-        flash("Le nouveau mot de passe doit contenir au moins 10 caractères.", "error")
-    elif new_password != confirmation:
-        flash("Les mots de passe ne correspondent pas.", "error")
-    else:
-        with get_db() as db:
-            db.execute(
-                "UPDATE members SET password_hash = ? WHERE id = ?",
-                (generate_password_hash(new_password), session["member_id"])
-            )
-        flash("Mot de passe modifié.", "success")
+    member = get_member(session["username"])
 
-    return redirect(url_for("section", page="account"))
+    if not member or not check_password_hash(member["password_hash"], old_password):
+        flash("Ton ancien mot de passe est incorrect.", "error")
+        return redirect(url_for("account"))
+
+    if len(new_password) < 8:
+        flash("Le nouveau mot de passe doit contenir au moins 8 caractères.", "error")
+        return redirect(url_for("account"))
+
+    with connect_db() as db:
+        db.execute("""
+            UPDATE members SET password_hash = ?
+            WHERE username = ?
+        """, (generate_password_hash(new_password), session["username"]))
+        db.commit()
+
+    flash("Ton mot de passe a été modifié.", "success")
+    return redirect(url_for("account"))
 
 
-# -------------------- ADMINISTRATION DES MEMBRES --------------------
-
-@app.get("/members")
+@app.route("/members", methods=["GET"])
+@login_required
 @admin_required
 def members():
-    with get_db() as db:
-        all_members = db.execute("""
-            SELECT id, username, active, created_at, grade, theme_color
-            FROM members ORDER BY id DESC
-        """).fetchall()
+    with connect_db() as db:
+        all_members = db.execute(
+            "SELECT * FROM members ORDER BY username"
+        ).fetchall()
 
     return render_template("members.html", members=all_members)
 
 
 @app.post("/members/create")
+@login_required
 @admin_required
 def create_member():
-    check_csrf()
-
     username = request.form.get("username", "").strip()
     password = request.form.get("password", "")
+    grade = request.form.get("grade", "member")
 
-    if not re.fullmatch(r"[a-zA-Z0-9_.-]{3,30}", username):
-        flash("Pseudo invalide : 3 à 30 caractères, lettres, chiffres, point, tiret ou underscore.", "error")
+    if not re.fullmatch(r"[A-Za-z0-9_.-]{3,24}", username):
+        flash("Identifiant invalide : 3 à 24 caractères, lettres, chiffres, point, tiret ou underscore.", "error")
         return redirect(url_for("members"))
 
-    if username.casefold() == HUB_USERNAME.casefold():
-        flash("Ce pseudo est réservé à l'administrateur.", "error")
+    if len(password) < 8:
+        flash("Le mot de passe doit contenir au moins 8 caractères.", "error")
         return redirect(url_for("members"))
 
-    if len(password) < 10:
-        flash("Mot de passe trop court : 10 caractères minimum.", "error")
-        return redirect(url_for("members"))
+    if grade not in ("member", "moderator"):
+        grade = "member"
 
     try:
-        with get_db() as db:
+        with connect_db() as db:
             db.execute("""
-                INSERT INTO members (username, password_hash)
-                VALUES (?, ?)
-            """, (username, generate_password_hash(password)))
-        flash("Membre créé.", "success")
+                INSERT INTO members
+                (username, password_hash, grade, display_name, theme_color)
+                VALUES (?, ?, ?, ?, ?)
+            """, (
+                username,
+                generate_password_hash(password),
+                grade,
+                username,
+                DEFAULT_COLOR
+            ))
+            db.commit()
     except sqlite3.IntegrityError:
-        flash("Ce pseudo existe déjà.", "error")
+        flash("Cet identifiant existe déjà.", "error")
+        return redirect(url_for("members"))
 
+    flash("Le membre a été créé.", "success")
     return redirect(url_for("members"))
 
 
 @app.post("/members/<int:member_id>/grade")
+@login_required
 @admin_required
-def change_member_grade(member_id):
-    check_csrf()
-    grade = request.form.get("grade", "")
-
+def change_grade(member_id):
+    grade = request.form.get("grade", "member")
     if grade not in ("member", "moderator"):
-        flash("Grade invalide.", "error")
-    else:
-        with get_db() as db:
-            db.execute(
-                "UPDATE members SET grade = ? WHERE id = ?",
-                (grade, member_id)
-            )
-        flash("Grade modifié.", "success")
+        abort(400)
 
+    with connect_db() as db:
+        db.execute(
+            "UPDATE members SET grade = ? WHERE id = ?",
+            (grade, member_id)
+        )
+        db.commit()
+
+    flash("Le grade a été modifié.", "success")
     return redirect(url_for("members"))
 
 
 @app.post("/members/<int:member_id>/toggle")
+@login_required
 @admin_required
 def toggle_member(member_id):
-    check_csrf()
+    with connect_db() as db:
+        db.execute("""
+            UPDATE members
+            SET active = CASE WHEN active = 1 THEN 0 ELSE 1 END
+            WHERE id = ?
+        """, (member_id,))
+        db.commit()
 
-    with get_db() as db:
-        member = db.execute(
-            "SELECT active FROM members WHERE id = ?", (member_id,)
-        ).fetchone()
-
-        if member:
-            db.execute(
-                "UPDATE members SET active = ? WHERE id = ?",
-                (0 if member["active"] else 1, member_id)
-            )
-            flash("Statut modifié.", "success")
-        else:
-            flash("Membre introuvable.", "error")
-
+    flash("Le statut du membre a été modifié.", "success")
     return redirect(url_for("members"))
 
 
 @app.post("/members/<int:member_id>/password")
+@login_required
 @admin_required
-def change_member_password(member_id):
-    check_csrf()
+def reset_member_password(member_id):
     password = request.form.get("password", "")
 
-    if len(password) < 10:
-        flash("Mot de passe trop court : 10 caractères minimum.", "error")
-    else:
-        with get_db() as db:
-            db.execute(
-                "UPDATE members SET password_hash = ? WHERE id = ?",
-                (generate_password_hash(password), member_id)
-            )
-        flash("Mot de passe modifié.", "success")
+    if len(password) < 8:
+        flash("Le mot de passe doit contenir au moins 8 caractères.", "error")
+        return redirect(url_for("members"))
 
+    with connect_db() as db:
+        db.execute("""
+            UPDATE members SET password_hash = ?
+            WHERE id = ?
+        """, (generate_password_hash(password), member_id))
+        db.commit()
+
+    flash("Le mot de passe a été changé.", "success")
     return redirect(url_for("members"))
 
 
 @app.post("/members/<int:member_id>/delete")
+@login_required
 @admin_required
 def delete_member(member_id):
-    check_csrf()
-
-    with get_db() as db:
+    with connect_db() as db:
         db.execute("DELETE FROM members WHERE id = ?", (member_id,))
+        db.commit()
 
-    flash("Compte supprimé.", "success")
+    flash("Le membre a été supprimé.", "success")
     return redirect(url_for("members"))
 
 
-# -------------------- ERREURS --------------------
-
-@app.errorhandler(400)
-def bad_request(error):
-    return render_template(
-        "error.html", code=400,
-        message=getattr(error, "description", "Requête incorrecte.")
-    ), 400
+@app.route("/service-worker.js")
+def service_worker():
+    return app.send_static_file("service-worker.js")
 
 
 @app.errorhandler(403)
 def forbidden(error):
     return render_template(
-        "error.html", code=403,
+        "error.html",
+        code=403,
         message="Tu n'as pas l'autorisation d'accéder à cette page."
     ), 403
 
@@ -476,13 +454,16 @@ def forbidden(error):
 @app.errorhandler(404)
 def not_found(error):
     return render_template(
-        "error.html", code=404,
+        "error.html",
+        code=404,
         message="Cette page n'existe pas."
     ), 404
 
 
-if __name__ == "__main__":
-    app.run(
-        host="0.0.0.0",
-        port=int(os.environ.get("PORT", 5000))
-    )
+@app.errorhandler(400)
+def bad_request(error):
+    return render_template(
+        "error.html",
+        code=400,
+        message="La requête n'a pas pu être vérifiée. Recharge la page et réessaie."
+    ), 400

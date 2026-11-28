@@ -1,30 +1,32 @@
-
 {% extends "base.html" %}
 
-{% block title %}Connexion · Kelyanti Hub{% endblock %}
+{% block title %}Connexion - Kelyanti Hub{% endblock %}
 
-{% block login_content %}
-<div class="login-card">
-    <div class="brand-icon login-logo">K</div>
-    <span class="eyebrow">BIENVENUE</span>
-    <h1>Kelyanti Hub</h1>
-    <p>Connecte-toi à ton espace personnel.</p>
+{% block public_content %}
+<div class="login-page">
+    <div class="login-card">
+        <div class="login-logo">K</div>
+        <span class="eyebrow">BIENVENUE SUR</span>
+        <h1>Kelyanti <span>Hub</span></h1>
+        <p class="login-description">Connecte-toi pour accéder à ton espace personnel.</p>
 
-    {% if error %}
-        <div class="notice error">{{ error }}</div>
-    {% endif %}
+        <form method="POST" action="{{ url_for('login') }}" class="form-stack">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
-    <form method="POST" action="{{ url_for('login') }}" class="form-stack">
-        <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+            <label for="username">Identifiant</label>
+            <input id="username" name="username" type="text"
+                   placeholder="Ton identifiant" autocomplete="username" required>
 
-        <label for="username">Identifiant</label>
-        <input id="username" name="username" autocomplete="username" required>
+            <label for="password">Mot de passe</label>
+            <input id="password" name="password" type="password"
+                   placeholder="Ton mot de passe" autocomplete="current-password" required>
 
-        <label for="password">Mot de passe</label>
-        <input id="password" name="password" type="password"
-               autocomplete="current-password" required>
+            <button type="submit" class="btn-primary login-submit">
+                Se connecter
+            </button>
+        </form>
 
-        <button class="btn-primary" type="submit">Se connecter</button>
-    </form>
+        <p class="login-footer">Les comptes sont créés par l'administrateur.</p>
+    </div>
 </div>
 {% endblock %}

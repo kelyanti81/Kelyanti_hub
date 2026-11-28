@@ -1,13 +1,12 @@
-
 {% extends "base.html" %}
 
+{% block title %}Erreur {{ code }} - Kelyanti Hub{% endblock %}
+
 {% block content %}
-<section class="panel error-container">
-    <span class="eyebrow">KELYANTI HUB</span>
-    <h1>Erreur {{ code }}</h1>
+<div class="error-page">
+    <span class="eyebrow">ERREUR</span>
+    <h1>{{ code }}</h1>
     <p>{{ message }}</p>
-    <a class="btn-primary button-link" href="{{ url_for('home') }}">
-        Retour au tableau de bord
-    </a>
-</section>
+    <a href="{{ url_for('dashboard') }}" class="btn-primary">Retour au tableau de bord</a>
+</div>
 {% endblock %}

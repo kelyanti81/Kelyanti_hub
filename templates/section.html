@@ -1,133 +1,181 @@
-
 {% extends "base.html" %}
 
+{% block title %}
+{% if page == 'dashboard' %}Tableau de bord
+{% elif page == 'minecraft' %}Minecraft
+{% elif page == 'arduino' %}Arduino
+{% elif page == 'account' %}Mon compte
+{% else %}Paramètres{% endif %} - Kelyanti Hub
+{% endblock %}
+
 {% block content %}
-<div class="page-heading">
-    <div>
-        <span class="eyebrow">KELYANTI HUB</span>
-        <h1>{{ title }}</h1>
-        <p>{{ description }}</p>
-    </div>
-</div>
 
-{% if page == "dashboard" %}
-
-<section class="panel dashboard-welcome">
-    <div>
-        <span class="eyebrow">TON ESPACE PERSONNEL</span>
-        <h2>Bienvenue, {{ session.username }} !</h2>
-        <p>Retrouve rapidement tes outils Kelyanti Hub.</p>
-    </div>
-    <div class="welcome-icon">K</div>
+{% if page == 'dashboard' %}
+<section class="page-heading">
+    <span class="eyebrow">ESPACE PERSONNEL</span>
+    <h1>Bienvenue, {{ display_name }} !</h1>
+    <p>Retrouve tes applications et tes espaces sur Kelyanti Hub.</p>
 </section>
 
 <div class="dashboard-grid">
-    <a class="dashboard-card" href="{{ url_for('section', page='minecraft') }}">
-        <span class="card-icon">⛏️</span>
-        <h3>Minecraft</h3>
+    <a class="dashboard-card" href="{{ url_for('minecraft') }}">
+        <div class="card-icon">▣</div>
+        <h2>Minecraft</h2>
         <p>Retrouve ton espace Minecraft.</p>
+        <span class="card-link">Ouvrir l'espace →</span>
     </a>
 
-    <a class="dashboard-card" href="{{ url_for('section', page='arduino') }}">
-        <span class="card-icon">⚡</span>
-        <h3>Arduino</h3>
-        <p>Retrouve tes projets électroniques.</p>
+    <a class="dashboard-card" href="{{ url_for('arduino') }}">
+        <div class="card-icon">⌁</div>
+        <h2>Arduino</h2>
+        <p>Ton espace dédié à Arduino et à tes projets.</p>
+        <span class="card-link">Ouvrir l'espace →</span>
     </a>
 
-    <a class="dashboard-card" href="{{ url_for('section', page='account') }}">
-        <span class="card-icon">👤</span>
-        <h3>Mon compte</h3>
-        <p>Gère tes informations personnelles.</p>
+    <a class="dashboard-card" href="{{ url_for('account') }}">
+        <div class="card-icon">◉</div>
+        <h2>Mon compte</h2>
+        <p>Consulte tes informations personnelles.</p>
+        <span class="card-link">Voir mon compte →</span>
     </a>
 
-    <a class="dashboard-card" href="{{ url_for('section', page='settings') }}">
-        <span class="card-icon">🎨</span>
-        <h3>Personnalisation</h3>
-        <p>Choisis ta couleur.</p>
+    <a class="dashboard-card" href="{{ url_for('settings') }}">
+        <div class="card-icon">⚙</div>
+        <h2>Paramètres</h2>
+        <p>Personnalise ton profil et ton interface.</p>
+        <span class="card-link">Personnaliser →</span>
     </a>
 
-    {% if session.role == "admin" %}
+    {% if is_admin %}
     <a class="dashboard-card" href="{{ url_for('members') }}">
-        <span class="card-icon">👥</span>
-        <h3>Gestion des membres</h3>
-        <p>Gère les comptes et les grades.</p>
+        <div class="card-icon">♙</div>
+        <h2>Gestion des membres</h2>
+        <p>Crée et gère les comptes des membres.</p>
+        <span class="card-link">Gérer les membres →</span>
     </a>
     {% endif %}
 </div>
 
-{% elif page == "minecraft" %}
-<section class="panel">
-    <h2>⛏️ Espace Minecraft</h2>
-    <p>Les outils de ton serveur Minecraft seront regroupés ici.</p>
-    <p>Cette section pourra accueillir la console, les joueurs et les statistiques.</p>
+{% elif page == 'minecraft' %}
+<section class="page-heading">
+    <span class="eyebrow">APPLICATION</span>
+    <h1>Minecraft</h1>
+    <p>Bienvenue dans ton espace Minecraft.</p>
 </section>
 
-{% elif page == "arduino" %}
-<section class="panel">
-    <h2>⚡ Espace Arduino</h2>
-    <p>Centralise ici tes projets, tes notes et tes programmes Arduino.</p>
+<div class="panel">
+    <div class="panel-icon">▣</div>
+    <h2>Espace Minecraft</h2>
+    <p>Cette section accueillera les outils et les informations de ton serveur Minecraft.</p>
+    <div class="notice info">Les fonctionnalités Minecraft seront ajoutées dans une prochaine étape.</div>
+</div>
+
+{% elif page == 'arduino' %}
+<section class="page-heading">
+    <span class="eyebrow">APPLICATION</span>
+    <h1>Arduino</h1>
+    <p>Bienvenue dans ton espace Arduino.</p>
 </section>
 
-{% elif page == "settings" %}
-<section class="panel">
-    <h2>🎨 Ma couleur personnelle</h2>
-    <p>Choisis une couleur pour personnaliser ton interface.</p>
+<div class="panel">
+    <div class="panel-icon">⌁</div>
+    <h2>Espace Arduino</h2>
+    <p>Cette section accueillera tes projets, notes et outils Arduino.</p>
+    <div class="notice info">Les fonctionnalités Arduino seront ajoutées dans une prochaine étape.</div>
+</div>
 
-    <form method="POST" action="{{ url_for('change_theme') }}" class="form-stack">
-        <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
-
-        <label for="theme_color">Couleur du tableau de bord</label>
-        <input id="theme_color" type="color" name="theme_color"
-               value="{{ theme_color }}" class="color-picker">
-
-        <button type="submit" class="btn-primary">Enregistrer ma couleur</button>
-    </form>
+{% elif page == 'account' %}
+<section class="page-heading">
+    <span class="eyebrow">ESPACE PERSONNEL</span>
+    <h1>Mon compte</h1>
+    <p>Consulte les informations de ton compte.</p>
 </section>
 
-{% elif page == "account" %}
-<section class="panel">
+<div class="panel account-panel">
     <div class="account-profile">
-        <div class="account-avatar">{{ session.username[:1]|upper }}</div>
+        <div class="account-avatar">{{ display_name[:1]|upper }}</div>
         <div>
-            <h2>{{ session.username }}</h2>
+            <h2>{{ display_name }}</h2>
             <p>
-                {% if session.role == "admin" %}
-                    Administrateur
-                {% elif session.role == "moderator" %}
-                    Modérateur
-                {% else %}
-                    Membre
-                {% endif %}
+                {% if is_admin %}Administrateur
+                {% elif current_user.grade == 'moderator' %}Modérateur
+                {% else %}Membre{% endif %}
             </p>
         </div>
     </div>
-</section>
 
-{% if session.role != "admin" %}
-<section class="panel">
-    <h2>🔐 Modifier mon mot de passe</h2>
-    <form method="POST" action="{{ url_for('change_own_password') }}" class="form-stack">
-        <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+    <div class="info-row">
+        <span>Sous-pseudo</span>
+        <strong>{{ display_name }}</strong>
+    </div>
+    <div class="info-row">
+        <span>Identifiant de connexion</span>
+        <strong>{{ current_user.username }}</strong>
+    </div>
+    <div class="info-row">
+        <span>Grade</span>
+        <strong>
+            {% if is_admin %}Administrateur
+            {% elif current_user.grade == 'moderator' %}Modérateur
+            {% else %}Membre{% endif %}
+        </strong>
+    </div>
+</div>
 
-        <label for="current_password">Mot de passe actuel</label>
-        <input id="current_password" name="current_password" type="password" required>
+<div class="panel">
+    <h2>Changer mon mot de passe</h2>
+
+    {% if is_admin %}
+    <p>Le mot de passe administrateur se modifie dans les variables d'environnement de Render.</p>
+    {% else %}
+    <form method="POST" action="{{ url_for('change_password') }}" class="form-stack">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <label for="old_password">Ancien mot de passe</label>
+        <input id="old_password" type="password" name="old_password" required>
 
         <label for="new_password">Nouveau mot de passe</label>
-        <input id="new_password" name="new_password" type="password"
-               minlength="10" required>
+        <input id="new_password" type="password" name="new_password"
+               minlength="8" required>
 
-        <label for="confirm_password">Confirmer le nouveau mot de passe</label>
-        <input id="confirm_password" name="confirm_password" type="password"
-               minlength="10" required>
-
-        <button class="btn-primary" type="submit">Modifier mon mot de passe</button>
+        <button class="btn-primary" type="submit">Modifier le mot de passe</button>
     </form>
+    {% endif %}
+</div>
+
+{% elif page == 'settings' %}
+<section class="page-heading">
+    <span class="eyebrow">PERSONNALISATION</span>
+    <h1>Paramètres</h1>
+    <p>Personnalise ton profil et l'apparence de ton espace.</p>
 </section>
-{% else %}
-<section class="panel">
-    <h2>Mot de passe administrateur</h2>
-    <p>Le mot de passe administrateur est géré dans les variables d'environnement Render.</p>
-</section>
+
+<div class="panel">
+    <h2>Mon profil</h2>
+
+    <form method="POST" action="{{ url_for('update_profile') }}" class="form-stack">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <label for="login-name">Identifiant de connexion</label>
+        <input id="login-name" type="text" value="{{ current_user.username }}" disabled>
+        <small class="field-help">Cet identifiant ne peut pas être modifié ici.</small>
+
+        <label for="display_name">Mon sous-pseudo</label>
+        <input id="display_name" type="text" name="display_name"
+               value="{{ display_name }}" maxlength="30" required>
+        <small class="field-help">C'est ce nom qui sera affiché sur le site.</small>
+
+        <label for="theme_color">Ma couleur personnelle</label>
+        <div class="color-picker">
+            <input id="theme_color" type="color" name="theme_color"
+                   value="{{ theme_color }}">
+            <span>Choisis la couleur de ton interface.</span>
+        </div>
+
+        <button class="btn-primary" type="submit">Enregistrer mes paramètres</button>
+    </form>
+</div>
+
 {% endif %}
-{% endif %}
+
 {% endblock %}

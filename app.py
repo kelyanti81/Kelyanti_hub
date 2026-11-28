@@ -4,15 +4,15 @@ import re
 import secrets
 from functools import wraps
 
-import psycopg
-from psycopg.rows import dict_row
-from psycopg.errors import UniqueViolation
-
 from flask import (
     Flask, render_template, request, redirect,
-    url_for, session, flash, abort
+    url_for, session, flash, abort, g
 )
 from werkzeug.security import generate_password_hash, check_password_hash
+
+from psycopg.rows import dict_row
+from psycopg.errors import UniqueViolation
+from psycopg_pool import ConnectionPool
 
 
 app = Flask(__name__)
@@ -26,18 +26,37 @@ ADMIN_PASSWORD = os.environ.get("HUB_PASSWORD", "")
 DEFAULT_COLOR = "#8b5cf6"
 
 
-def connect_db():
-    if not DATABASE_URL:
-        raise RuntimeError(
-            "DATABASE_URL est absent des variables d'environnement Render."
-        )
+# --------------------------------------------------
+# CONNEXION POSTGRESQL AVEC POOL
+# --------------------------------------------------
 
-    return psycopg.connect(
-        DATABASE_URL,
-        row_factory=dict_row,
-        connect_timeout=15
+if not DATABASE_URL:
+    raise RuntimeError(
+        "DATABASE_URL est absent des variables d'environnement Render."
     )
 
+db_pool = ConnectionPool(
+    conninfo=DATABASE_URL,
+    kwargs={
+        "row_factory": dict_row,
+        "connect_timeout": 15
+    },
+    min_size=1,
+    max_size=3,
+    timeout=15,
+    open=False
+)
+
+db_pool.open()
+
+
+def connect_db():
+    return db_pool.connection()
+
+
+# --------------------------------------------------
+# INITIALISATION DE LA BASE
+# --------------------------------------------------
 
 def init_db():
     with connect_db() as db:
@@ -57,14 +76,17 @@ def init_db():
             ALTER TABLE members
             ADD COLUMN IF NOT EXISTS grade TEXT NOT NULL DEFAULT 'member'
         """)
+
         db.execute("""
             ALTER TABLE members
             ADD COLUMN IF NOT EXISTS active BOOLEAN NOT NULL DEFAULT TRUE
         """)
+
         db.execute("""
             ALTER TABLE members
             ADD COLUMN IF NOT EXISTS display_name TEXT NOT NULL DEFAULT ''
         """)
+
         db.execute("""
             ALTER TABLE members
             ADD COLUMN IF NOT EXISTS theme_color TEXT NOT NULL DEFAULT '#8b5cf6'
@@ -81,6 +103,10 @@ def init_db():
 init_db()
 
 
+# --------------------------------------------------
+# PARAMÈTRES
+# --------------------------------------------------
+
 def get_setting(key, default=""):
     with connect_db() as db:
         row = db.execute(
@@ -96,9 +122,28 @@ def set_setting(key, value):
         db.execute("""
             INSERT INTO settings (key, value)
             VALUES (%s, %s)
-            ON CONFLICT(key) DO UPDATE SET value = EXCLUDED.value
+            ON CONFLICT(key) DO UPDATE
+            SET value = EXCLUDED.value
         """, (key, value))
 
+
+def get_admin_settings():
+    with connect_db() as db:
+        rows = db.execute("""
+            SELECT key, value
+            FROM settings
+            WHERE key IN (
+                'admin_display_name',
+                'admin_theme_color'
+            )
+        """).fetchall()
+
+    return {row["key"]: row["value"] for row in rows}
+
+
+# --------------------------------------------------
+# MEMBRES
+# --------------------------------------------------
 
 def get_member(username):
     with connect_db() as db:
@@ -108,24 +153,41 @@ def get_member(username):
         ).fetchone()
 
 
+# --------------------------------------------------
+# UTILISATEUR CONNECTÉ
+# Cache pendant une seule requête HTTP
+# --------------------------------------------------
+
 def current_user():
+    if getattr(g, "_current_user_loaded", False):
+        return g._current_user
+
+    g._current_user_loaded = True
+    g._current_user = None
+
     username = session.get("username")
 
     if not username:
         return None
 
     if session.get("role") == "admin":
-        return {
+        settings = get_admin_settings()
+
+        g._current_user = {
             "username": ADMIN_USERNAME,
-            "display_name": get_setting(
-                "admin_display_name", ADMIN_USERNAME
+            "display_name": settings.get(
+                "admin_display_name",
+                ADMIN_USERNAME
             ),
             "grade": "admin",
-            "theme_color": get_setting(
-                "admin_theme_color", DEFAULT_COLOR
+            "theme_color": settings.get(
+                "admin_theme_color",
+                DEFAULT_COLOR
             ),
             "active": True
         }
+
+        return g._current_user
 
     member = get_member(username)
 
@@ -133,15 +195,22 @@ def current_user():
         session.clear()
         return None
 
+    g._current_user = member
     return member
 
+
+# --------------------------------------------------
+# PROTECTIONS
+# --------------------------------------------------
 
 def login_required(function):
     @wraps(function)
     def wrapper(*args, **kwargs):
         if not current_user():
             return redirect(url_for("login"))
+
         return function(*args, **kwargs)
+
     return wrapper
 
 
@@ -150,13 +219,16 @@ def admin_required(function):
     def wrapper(*args, **kwargs):
         if session.get("role") != "admin":
             abort(403)
+
         return function(*args, **kwargs)
+
     return wrapper
 
 
 def csrf_token():
     if "_csrf_token" not in session:
         session["_csrf_token"] = secrets.token_hex(24)
+
     return session["_csrf_token"]
 
 
@@ -174,7 +246,7 @@ def inject_globals():
         "theme_color": (
             user["theme_color"] if user else DEFAULT_COLOR
         ),
-        "is_admin": session.get("role") == "admin",
+        "is_admin": session.get("role") == "admin"
     }
 
 
@@ -192,10 +264,15 @@ def protect_forms():
             abort(400)
 
 
+# --------------------------------------------------
+# CONNEXION
+# --------------------------------------------------
+
 @app.route("/")
 def index():
     if current_user():
         return redirect(url_for("dashboard"))
+
     return redirect(url_for("login"))
 
 
@@ -216,6 +293,7 @@ def login():
             session.clear()
             session["username"] = ADMIN_USERNAME
             session["role"] = "admin"
+
             return redirect(url_for("dashboard"))
 
         member = get_member(username)
@@ -223,14 +301,21 @@ def login():
         if (
             member
             and member["active"]
-            and check_password_hash(member["password_hash"], password)
+            and check_password_hash(
+                member["password_hash"],
+                password
+            )
         ):
             session.clear()
             session["username"] = member["username"]
             session["role"] = member["grade"]
+
             return redirect(url_for("dashboard"))
 
-        flash("Identifiant ou mot de passe incorrect.", "error")
+        flash(
+            "Identifiant ou mot de passe incorrect.",
+            "error"
+        )
 
     return render_template("login.html")
 
@@ -242,41 +327,71 @@ def logout():
     return redirect(url_for("login"))
 
 
+# --------------------------------------------------
+# PAGES
+# --------------------------------------------------
+
 @app.route("/dashboard")
 @login_required
 def dashboard():
-    return render_template("section.html", page="dashboard")
+    return render_template(
+        "section.html",
+        page="dashboard"
+    )
 
 
 @app.route("/minecraft")
 @login_required
 def minecraft():
-    return render_template("section.html", page="minecraft")
+    return render_template(
+        "section.html",
+        page="minecraft"
+    )
 
 
 @app.route("/arduino")
 @login_required
 def arduino():
-    return render_template("section.html", page="arduino")
+    return render_template(
+        "section.html",
+        page="arduino"
+    )
 
 
 @app.route("/account")
 @login_required
 def account():
-    return render_template("section.html", page="account")
+    return render_template(
+        "section.html",
+        page="account"
+    )
 
 
 @app.route("/settings")
 @login_required
 def settings():
-    return render_template("section.html", page="settings")
+    return render_template(
+        "section.html",
+        page="settings"
+    )
 
+
+# --------------------------------------------------
+# PROFIL : SOUS-PSEUDO ET COULEUR
+# --------------------------------------------------
 
 @app.post("/settings/profile")
 @login_required
 def update_profile():
-    name = request.form.get("display_name", "").strip()
-    color = request.form.get("theme_color", DEFAULT_COLOR).strip()
+    name = request.form.get(
+        "display_name",
+        ""
+    ).strip()
+
+    color = request.form.get(
+        "theme_color",
+        DEFAULT_COLOR
+    ).strip()
 
     if not name or len(name) > 30:
         flash(
@@ -286,23 +401,40 @@ def update_profile():
         return redirect(url_for("settings"))
 
     if not re.fullmatch(r"#[0-9a-fA-F]{6}", color):
-        flash("La couleur choisie n'est pas valide.", "error")
+        flash(
+            "La couleur choisie n'est pas valide.",
+            "error"
+        )
         return redirect(url_for("settings"))
 
     if session.get("role") == "admin":
         set_setting("admin_display_name", name)
         set_setting("admin_theme_color", color)
+
     else:
         with connect_db() as db:
             db.execute("""
                 UPDATE members
-                SET display_name = %s, theme_color = %s
+                SET display_name = %s,
+                    theme_color = %s
                 WHERE username = %s
-            """, (name, color, session["username"]))
+            """, (
+                name,
+                color,
+                session["username"]
+            ))
 
-    flash("Tes paramètres ont été enregistrés.", "success")
+    flash(
+        "Tes paramètres ont été enregistrés.",
+        "success"
+    )
+
     return redirect(url_for("settings"))
 
+
+# --------------------------------------------------
+# MOT DE PASSE
+# --------------------------------------------------
 
 @app.post("/account/password")
 @login_required
@@ -321,9 +453,15 @@ def change_password():
 
     if (
         not member
-        or not check_password_hash(member["password_hash"], old_password)
+        or not check_password_hash(
+            member["password_hash"],
+            old_password
+        )
     ):
-        flash("Ton ancien mot de passe est incorrect.", "error")
+        flash(
+            "Ton ancien mot de passe est incorrect.",
+            "error"
+        )
         return redirect(url_for("account"))
 
     if len(new_password) < 8:
@@ -335,38 +473,59 @@ def change_password():
 
     with connect_db() as db:
         db.execute("""
-            UPDATE members SET password_hash = %s
+            UPDATE members
+            SET password_hash = %s
             WHERE username = %s
         """, (
             generate_password_hash(new_password),
             session["username"]
         ))
 
-    flash("Ton mot de passe a été modifié.", "success")
+    flash(
+        "Ton mot de passe a été modifié.",
+        "success"
+    )
+
     return redirect(url_for("account"))
 
+
+# --------------------------------------------------
+# GESTION DES MEMBRES
+# --------------------------------------------------
 
 @app.route("/members", methods=["GET"])
 @login_required
 @admin_required
 def members():
     with connect_db() as db:
-        all_members = db.execute(
-            "SELECT * FROM members ORDER BY username"
-        ).fetchall()
+        all_members = db.execute("""
+            SELECT *
+            FROM members
+            ORDER BY username
+        """).fetchall()
 
-    return render_template("members.html", members=all_members)
+    return render_template(
+        "members.html",
+        members=all_members
+    )
 
 
 @app.post("/members/create")
 @login_required
 @admin_required
 def create_member():
-    username = request.form.get("username", "").strip()
+    username = request.form.get(
+        "username",
+        ""
+    ).strip()
+
     password = request.form.get("password", "")
     grade = request.form.get("grade", "member")
 
-    if not re.fullmatch(r"[A-Za-z0-9_.-]{3,24}", username):
+    if not re.fullmatch(
+        r"[A-Za-z0-9_.-]{3,24}",
+        username
+    ):
         flash(
             "Identifiant invalide : 3 à 24 caractères, lettres, chiffres, point, tiret ou underscore.",
             "error"
@@ -386,8 +545,13 @@ def create_member():
     try:
         with connect_db() as db:
             db.execute("""
-                INSERT INTO members
-                (username, password_hash, grade, display_name, theme_color)
+                INSERT INTO members (
+                    username,
+                    password_hash,
+                    grade,
+                    display_name,
+                    theme_color
+                )
                 VALUES (%s, %s, %s, %s, %s)
             """, (
                 username,
@@ -398,10 +562,17 @@ def create_member():
             ))
 
     except UniqueViolation:
-        flash("Cet identifiant existe déjà.", "error")
+        flash(
+            "Cet identifiant existe déjà.",
+            "error"
+        )
         return redirect(url_for("members"))
 
-    flash("Le membre a été créé.", "success")
+    flash(
+        "Le membre a été créé.",
+        "success"
+    )
+
     return redirect(url_for("members"))
 
 
@@ -420,7 +591,11 @@ def change_grade(member_id):
             (grade, member_id)
         )
 
-    flash("Le grade a été modifié.", "success")
+    flash(
+        "Le grade a été modifié.",
+        "success"
+    )
+
     return redirect(url_for("members"))
 
 
@@ -435,7 +610,11 @@ def toggle_member(member_id):
             WHERE id = %s
         """, (member_id,))
 
-    flash("Le statut du membre a été modifié.", "success")
+    flash(
+        "Le statut du membre a été modifié.",
+        "success"
+    )
+
     return redirect(url_for("members"))
 
 
@@ -454,11 +633,19 @@ def reset_member_password(member_id):
 
     with connect_db() as db:
         db.execute("""
-            UPDATE members SET password_hash = %s
+            UPDATE members
+            SET password_hash = %s
             WHERE id = %s
-        """, (generate_password_hash(password), member_id))
+        """, (
+            generate_password_hash(password),
+            member_id
+        ))
 
-    flash("Le mot de passe a été changé.", "success")
+    flash(
+        "Le mot de passe a été changé.",
+        "success"
+    )
+
     return redirect(url_for("members"))
 
 
@@ -472,14 +659,26 @@ def delete_member(member_id):
             (member_id,)
         )
 
-    flash("Le membre a été supprimé.", "success")
+    flash(
+        "Le membre a été supprimé.",
+        "success"
+    )
+
     return redirect(url_for("members"))
 
+
+# --------------------------------------------------
+# SERVICE WORKER
+# --------------------------------------------------
 
 @app.route("/service-worker.js")
 def service_worker():
     return app.send_static_file("service-worker.js")
 
+
+# --------------------------------------------------
+# ERREURS
+# --------------------------------------------------
 
 @app.errorhandler(403)
 def forbidden(error):

@@ -1,5 +1,5 @@
 
-const CACHE_NAME = "kelyanti-hub-v2";
+const CACHE_NAME = "kelyanti-hub-v3";
 
 const STATIC_FILES = [
     "/static/style.css",
@@ -10,8 +10,10 @@ const STATIC_FILES = [
 
 self.addEventListener("install", (event) => {
     event.waitUntil(
-        caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_FILES))
+        caches.open(CACHE_NAME)
+            .then((cache) => cache.addAll(STATIC_FILES))
     );
+
     self.skipWaiting();
 });
 
@@ -20,11 +22,12 @@ self.addEventListener("activate", (event) => {
         caches.keys().then((keys) =>
             Promise.all(
                 keys
-                    .filter((key) => key !== CACHE_NAME)
+                    .filter((key) => key.startsWith("kelyanti-hub-") && key !== CACHE_NAME)
                     .map((key) => caches.delete(key))
             )
         )
     );
+
     self.clients.claim();
 });
 
@@ -32,23 +35,21 @@ self.addEventListener("fetch", (event) => {
     const request = event.request;
     const url = new URL(request.url);
 
-    if (request.method !== "GET" || url.origin !== self.location.origin) {
-        return;
-    }
-
-    if (!url.pathname.startsWith("/static/")) {
+    if (
+        request.method !== "GET" ||
+        url.origin !== self.location.origin ||
+        !url.pathname.startsWith("/static/")
+    ) {
         return;
     }
 
     event.respondWith(
-        fetch(request, { cache: "no-cache" }).then((response) => {
-            if (response.ok) {
-                const copy = response.clone();
-                caches.open(CACHE_NAME).then((cache) => {
-                    cache.put(request, copy);
-                });
+        caches.match(request).then((cached) => {
+            if (cached) {
+                return cached;
             }
-            return response;
-        }).catch(() => caches.match(request))
+
+            return fetch(request);
+        })
     );
 });

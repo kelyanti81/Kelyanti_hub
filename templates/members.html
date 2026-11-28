@@ -1,98 +1,13 @@
 {% extends "base.html" %}
-
 {% block title %}Gestion des membres - Kelyanti Hub{% endblock %}
-
 {% block content %}
-
-<section class="page-heading">
-    <span class="eyebrow">ADMINISTRATION</span>
-    <h1>Gestion des membres</h1>
-    <p>Crée et gère les comptes de ton Kelyanti Hub.</p>
-</section>
-
-<div class="panel">
-    <h2>Créer un membre</h2>
-
-    <form method="POST" action="{{ url_for('create_member') }}" class="form-stack">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-
-        <label for="username">Identifiant de connexion</label>
-        <input id="username" name="username" type="text"
-               minlength="3" maxlength="24"
-               placeholder="Exemple : bob" required>
-
-        <label for="password">Mot de passe initial</label>
-        <input id="password" name="password" type="password"
-               minlength="8" placeholder="8 caractères minimum" required>
-
-        <label for="grade">Grade</label>
-        <select id="grade" name="grade">
-            <option value="member">Membre</option>
-            <option value="moderator">Modérateur</option>
-        </select>
-
-        <button class="btn-primary" type="submit">Créer le compte</button>
-    </form>
-</div>
-
-<div class="page-heading compact-heading">
-    <h2>Membres enregistrés</h2>
-    <p>{{ members|length }} compte(s)</p>
-</div>
-
-<div class="members-list">
-    {% for member in members %}
-    <article class="member-card">
-        <div class="member-info">
-            <div class="member-avatar" style="--member-color: {{ member.theme_color }}">
-                {{ (member.display_name or member.username)[:1]|upper }}
-            </div>
-
-            <div class="member-text">
-                <strong>{{ member.display_name or member.username }}</strong>
-                <small>Identifiant : {{ member.username }}</small>
-                <span class="status {% if member.active %}online{% else %}offline{% endif %}">
-                    {% if member.active %}Compte actif{% else %}Compte désactivé{% endif %}
-                </span>
-            </div>
-        </div>
-
-        <div class="member-actions">
-            <form method="POST" action="{{ url_for('change_grade', member_id=member.id) }}" class="form-inline">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <select name="grade" aria-label="Grade">
-                    <option value="member" {% if member.grade == 'member' %}selected{% endif %}>Membre</option>
-                    <option value="moderator" {% if member.grade == 'moderator' %}selected{% endif %}>Modérateur</option>
-                </select>
-                <button class="btn-secondary" type="submit">Changer le grade</button>
-            </form>
-
-            <form method="POST" action="{{ url_for('toggle_member', member_id=member.id) }}">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button class="btn-secondary" type="submit">
-                    {% if member.active %}Désactiver{% else %}Activer{% endif %}
-                </button>
-            </form>
-
-            <form method="POST" action="{{ url_for('reset_member_password', member_id=member.id) }}" class="form-inline">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <input name="password" type="password" minlength="8"
-                       placeholder="Nouveau mot de passe" required>
-                <button class="btn-secondary" type="submit">Changer le mot de passe</button>
-            </form>
-
-            <form method="POST" action="{{ url_for('delete_member', member_id=member.id) }}"
-                  onsubmit="return confirm('Supprimer définitivement ce membre ?');">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button class="btn-danger" type="submit">Supprimer le membre</button>
-            </form>
-        </div>
-    </article>
-    {% else %}
-    <div class="panel">
-        <p>Aucun membre n'a encore été créé.</p>
-    </div>
-    {% endfor %}
-</div>
-
+<section class="page-heading"><span class="eyebrow">ADMINISTRATION</span><h1>Gestion des membres</h1><p>Comptes et présence en direct (actualisation automatique).</p></section>
+<div class="panel"><h2>Membres actuellement en ligne</h2><div id="online-members" class="online-list"><p>Chargement de la présence…</p></div><small class="field-help">Un membre est considéré en ligne s'il a utilisé le site au cours des 100 dernières secondes.</small></div>
+<div class="panel"><h2>Créer un membre</h2><form method="POST" action="{{ url_for('create_member') }}" class="form-stack"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><label>Identifiant de connexion</label><input name="username" minlength="3" maxlength="24" required><label>Mot de passe initial</label><input name="password" type="password" minlength="8" required><label>Grade</label><select name="grade"><option value="member">Membre</option><option value="moderator">Modérateur</option></select><button class="btn-primary">Créer le compte</button></form></div>
+<div class="page-heading compact-heading"><h2>Membres enregistrés</h2><p>{{ members|length }} compte(s)</p></div>
+<div class="members-list">{% for member in members %}<article class="member-card"><div class="member-info"><div class="member-avatar" style="--member-color:{{ member.theme_color }}">{{ (member.display_name or member.username)[:1]|upper }}</div><div class="member-text"><strong>{{ member.display_name or member.username }}</strong><small>Identifiant : {{ member.username }}</small><span class="status {% if member.active %}online{% else %}offline{% endif %}">{% if member.active %}Compte activé{% else %}Compte désactivé{% endif %}</span><span class="status {% if member.online %}online{% else %}offline{% endif %}">{% if member.online %}● En ligne{% else %}○ Hors ligne{% endif %}</span></div></div>
+<div class="member-actions"><form method="POST" action="{{ url_for('change_grade',member_id=member.id) }}" class="form-inline"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><select name="grade"><option value="member" {% if member.grade=='member' %}selected{% endif %}>Membre</option><option value="moderator" {% if member.grade=='moderator' %}selected{% endif %}>Modérateur</option></select><button class="btn-secondary">Changer le grade</button></form>
+<form method="POST" action="{{ url_for('toggle_member',member_id=member.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn-secondary">{% if member.active %}Désactiver{% else %}Activer{% endif %}</button></form>
+<form method="POST" action="{{ url_for('reset_member_password',member_id=member.id) }}" class="form-inline"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input name="password" type="password" minlength="8" placeholder="Nouveau mot de passe" required><button class="btn-secondary">Changer le mot de passe</button></form>
+<form method="POST" action="{{ url_for('delete_member',member_id=member.id) }}" data-confirm="Supprimer définitivement ce membre ?"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn-danger">Supprimer le membre</button></form></div></article>{% else %}<div class="panel"><p>Aucun membre créé.</p></div>{% endfor %}</div>
 {% endblock %}

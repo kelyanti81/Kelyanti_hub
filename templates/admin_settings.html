@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}Personnalisation admin - Kelyanti Hub{% endblock %}
+{% block content %}
+<section class="page-heading"><span class="eyebrow">ADMINISTRATION</span><h1>Personnalisation du site</h1><p>Ces réglages changent l'apparence générale pour tous les membres. Les couleurs personnelles restent individuelles.</p></section>
+<form method="POST" class="form-stack admin-custom-form"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+<div class="panel"><h2>Onglets</h2><p>Tu peux modifier leur nom, leur icône et leur visibilité. Tableau de bord et Mon compte restent toujours accessibles.</p>
+{% for key,item in nav.items() %}<div class="nav-edit-row"><div class="nav-edit-fields"><label>{{ key }}</label><input name="label_{{ key }}" value="{{ item.label }}" maxlength="32" aria-label="Nom de {{ key }}"><input name="icon_{{ key }}" value="{{ item.icon }}" maxlength="4" aria-label="Icône de {{ key }}"></div><label class="check-label"><input type="checkbox" name="visible_{{ key }}" {% if item.visible %}checked{% endif %}> Afficher</label></div>{% endfor %}
+</div>
+<div class="panel"><h2>Thème général</h2><label>Couleur de fond</label><input type="color" name="background" value="{{ site_theme.background|default('#0c0b13') }}"><label>Couleur des panneaux</label><input type="color" name="surface" value="{{ site_theme.surface|default('#151421') }}"><button class="btn-primary">Enregistrer la personnalisation</button></div>
+</form>
+{% endblock %}

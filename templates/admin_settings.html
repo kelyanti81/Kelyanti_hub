@@ -1,11 +1,92 @@
+
 {% extends "base.html" %}
-{% block title %}Personnalisation admin - Kelyanti Hub{% endblock %}
+{% block title %}Personnalisation - Kelyanti Hub{% endblock %}
+
 {% block content %}
-<section class="page-heading"><span class="eyebrow">ADMINISTRATION</span><h1>Personnalisation du site</h1><p>Ces réglages changent l'apparence générale pour tous les membres. Les couleurs personnelles restent individuelles.</p></section>
-<form method="POST" class="form-stack admin-custom-form"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-<div class="panel"><h2>Onglets</h2><p>Tu peux modifier leur nom, leur icône et leur visibilité. Tableau de bord et Mon compte restent toujours accessibles.</p>
-{% for key,item in nav.items() %}<div class="nav-edit-row"><div class="nav-edit-fields"><label>{{ key }}</label><input name="label_{{ key }}" value="{{ item.label }}" maxlength="32" aria-label="Nom de {{ key }}"><input name="icon_{{ key }}" value="{{ item.icon }}" maxlength="4" aria-label="Icône de {{ key }}"></div><label class="check-label"><input type="checkbox" name="visible_{{ key }}" {% if item.visible %}checked{% endif %}> Afficher</label></div>{% endfor %}
-</div>
-<div class="panel"><h2>Thème général</h2><label>Couleur de fond</label><input type="color" name="background" value="{{ site_theme.background|default('#0c0b13') }}"><label>Couleur des panneaux</label><input type="color" name="surface" value="{{ site_theme.surface|default('#151421') }}"><button class="btn-primary">Enregistrer la personnalisation</button></div>
+
+<section class="page-heading">
+    <span class="eyebrow">ADMINISTRATION</span>
+    <h1>Personnalisation du site</h1>
+    <p>Modifie les onglets et le thème général de Kelyanti Hub.</p>
+</section>
+
+<form method="POST" class="form-stack admin-custom-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <div class="panel">
+        <h2>Onglets de navigation</h2>
+        <p>
+            Décoche « Afficher » pour retirer un onglet de la barre latérale,
+            de la barre mobile et des cartes de l'accueil.
+        </p>
+
+        {% for key,item in nav.items() %}
+        <div class="nav-edit-row">
+            <div class="nav-edit-fields">
+                <label>{{ key }}</label>
+                <input
+                    name="label_{{ key }}"
+                    value="{{ item.label }}"
+                    maxlength="32"
+                    aria-label="Nom de {{ key }}"
+                >
+            </div>
+
+            <label class="check-label">
+                <input
+                    type="checkbox"
+                    name="visible_{{ key }}"
+                    {% if item.visible %}checked{% endif %}
+                >
+                Afficher
+            </label>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="panel">
+        <h2>Thème général</h2>
+
+        <label>Couleur de fond</label>
+        <input
+            type="color"
+            name="background"
+            value="{{ site_theme.background|default('#0c0b13') }}"
+        >
+
+        <label>Couleur des panneaux</label>
+        <input
+            type="color"
+            name="surface"
+            value="{{ site_theme.surface|default('#151421') }}"
+        >
+
+        <button class="btn-primary" type="submit">
+            Enregistrer la personnalisation
+        </button>
+    </div>
 </form>
+
+<div class="panel reset-panel">
+    <h2>Réinitialiser la personnalisation</h2>
+
+    <p>
+        Restaure les noms, l'affichage des onglets et le thème d'origine.
+        Les comptes, les mots de passe et les couleurs personnelles des membres
+        seront conservés.
+    </p>
+
+    <form
+        method="POST"
+        data-confirm="Réinitialiser les onglets et le thème du site ? Les comptes ne seront pas supprimés."
+    >
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="reset_customization" value="1">
+
+        <button class="btn-danger" type="submit">
+            ↺ Réinitialiser
+        </button>
+    </form>
+</div>
+
 {% endblock %}

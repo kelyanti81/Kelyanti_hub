@@ -126,7 +126,7 @@
     <h2>Changer mon mot de passe</h2>
 
     {% if is_admin %}
-    <p>Le mot de passe administrateur se modifie dans les variables d'environnement de Render.</p>
+    <p>Le mot de passe administrateur se modifie dans les variables Render.</p>
     {% else %}
     <form method="POST" action="{{ url_for('change_password') }}" class="form-stack">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -172,7 +172,21 @@
             <span>Choisis la couleur de ton interface.</span>
         </div>
 
-        <button class="btn-primary" type="submit">Enregistrer mes paramètres</button>
+        <button class="btn-primary" type="submit">
+            Enregistrer mes paramètres
+        </button>
+    </form>
+</div>
+
+<div class="panel">
+    <h2>Session</h2>
+    <p>Tu peux te déconnecter de ton compte à tout moment.</p>
+
+    <form method="POST" action="{{ url_for('logout') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="btn-danger" type="submit">
+            ↪ Se déconnecter
+        </button>
     </form>
 </div>
 

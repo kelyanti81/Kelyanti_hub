@@ -1,20 +1,19 @@
-
 {
-  "name": "Kelyanti Hub",
-  "short_name": "Kelyanti",
-  "description": "Espace personnel Kelyanti Hub",
-  "start_url": "/",
-  "scope": "/",
-  "display": "standalone",
-  "background_color": "#0c0b13",
-  "theme_color": "#8b5cf6",
-  "orientation": "any",
-  "icons": [
-    {
-      "src": "/static/icon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
-      "purpose": "any maskable"
-    }
-  ]
+    "name": "Kelyanti Hub",
+    "short_name": "Kelyanti",
+    "description": "Espace personnel Kelyanti Hub",
+    "start_url": "/",
+    "scope": "/",
+    "display": "standalone",
+    "orientation": "portrait",
+    "background_color": "#0c0b13",
+    "theme_color": "#11111b",
+    "icons": [
+        {
+            "src": "/static/icon.svg",
+            "sizes": "any",
+            "type": "image/svg+xml",
+            "purpose": "any"
+        }
+    ]
 }

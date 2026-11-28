@@ -48,22 +48,13 @@ def connect_db():
 
 
 DEFAULT_NAV = [
-    {"key": "dashboard", "label": "Tableau de bord", "icon": "⌂", "visible": True},
-    {"key": "minecraft", "label": "Minecraft", "icon": "▣", "visible": True},
-    {"key": "arduino", "label": "Arduino", "icon": "⌁", "visible": True},
-    {"key": "account", "label": "Mon compte", "icon": "◉", "visible": True},
-    {"key": "settings", "label": "Paramètres", "icon": "⚙", "visible": True},
-    {"key": "members", "label": "Gestion des membres", "icon": "♙", "visible": True},
+    {"key": "dashboard", "label": "Accueil", "icon": "home", "visible": True},
+    {"key": "minecraft", "label": "Minecraft", "icon": "gamepad-2", "visible": True},
+    {"key": "arduino", "label": "Arduino", "icon": "cpu", "visible": True},
+    {"key": "account", "label": "Mon compte", "icon": "user-round", "visible": True},
+    {"key": "settings", "label": "Paramètres", "icon": "settings", "visible": True},
+    {"key": "members", "label": "Gestion des membres", "icon": "users", "visible": True},
 ]
-
-ENDPOINTS = {
-    "dashboard": "dashboard",
-    "minecraft": "minecraft",
-    "arduino": "arduino",
-    "account": "account",
-    "settings": "settings",
-    "members": "members"
-}
 
 
 def init_db():
@@ -182,9 +173,7 @@ def login_required(fn):
     def wrapper(*args, **kwargs):
         if not current_user():
             return redirect(url_for("login"))
-
         return fn(*args, **kwargs)
-
     return wrapper
 
 
@@ -193,27 +182,24 @@ def admin_required(fn):
     def wrapper(*args, **kwargs):
         if session.get("role") != "admin":
             abort(403)
-
         return fn(*args, **kwargs)
-
     return wrapper
 
 
 def csrf_token():
     if "_csrf_token" not in session:
         session["_csrf_token"] = secrets.token_hex(24)
-
     return session["_csrf_token"]
 
 
 @app.before_request
 def protect_forms():
-    if request.method == "POST":
+    # L'agent Dell utilise son propre jeton secret X-Dell-Token.
+    if request.method == "POST" and request.path != "/api/dell/heartbeat":
         sent = (
             request.form.get("csrf_token", "")
             or request.headers.get("X-CSRF-Token", "")
         )
-
         expected = session.get("_csrf_token", "")
 
         if (
@@ -251,22 +237,11 @@ def navigation_items():
         result.append({
             "key": default["key"],
             "label": str(item.get("label", default["label"]))[:32] or default["label"],
-            "icon": str(item.get("icon", default["icon"]))[:4] or default["icon"],
+            "icon": default["icon"],
             "visible": bool(item.get("visible", default["visible"]))
         })
 
-    return sorted(
-        result,
-        key=lambda x: next(
-            (
-                i for i, v in enumerate(raw)
-                if isinstance(v, dict) and v.get("key") == x["key"]
-            ),
-            DEFAULT_NAV.index(
-                next(d for d in DEFAULT_NAV if d["key"] == x["key"])
-            )
-        )
-    )
+    return result
 
 
 @app.context_processor
@@ -326,7 +301,6 @@ def login():
             session.clear()
             session["username"] = ADMIN_USERNAME
             session["role"] = "admin"
-
             return redirect(url_for("dashboard"))
 
         member = get_member(username)
@@ -339,7 +313,6 @@ def login():
             session.clear()
             session["username"] = member["username"]
             session["role"] = member["grade"]
-
             return redirect(url_for("dashboard"))
 
         flash("Identifiant ou mot de passe incorrect.", "error")
@@ -367,12 +340,10 @@ def dashboard():
 @app.route("/minecraft")
 @login_required
 def minecraft():
-    status = get_dell_status()
-
     return render_template(
         "section.html",
         page="minecraft",
-        dell_status=status
+        dell_status=get_dell_status()
     )
 
 
@@ -401,10 +372,7 @@ def update_profile():
     color = request.form.get("theme_color", DEFAULT_COLOR).strip()
 
     if not name or len(name) > 30:
-        flash(
-            "Le sous-pseudo doit contenir entre 1 et 30 caractères.",
-            "error"
-        )
+        flash("Le sous-pseudo doit contenir entre 1 et 30 caractères.", "error")
         return redirect(url_for("settings"))
 
     if not re.fullmatch(r"#[0-9a-fA-F]{6}", color):
@@ -438,7 +406,6 @@ def change_password():
 
     old = request.form.get("old_password", "")
     new = request.form.get("new_password", "")
-
     member = get_member(session["username"])
 
     if not member or not check_password_hash(member["password_hash"], old):
@@ -446,10 +413,7 @@ def change_password():
         return redirect(url_for("account"))
 
     if len(new) < 8:
-        flash(
-            "Le nouveau mot de passe doit contenir au moins 8 caractères.",
-            "error"
-        )
+        flash("Le nouveau mot de passe doit contenir au moins 8 caractères.", "error")
         return redirect(url_for("account"))
 
     with connect_db() as db:
@@ -514,7 +478,6 @@ def create_member():
                 username,
                 DEFAULT_COLOR
             ))
-
     except UniqueViolation:
         flash("Cet identifiant existe déjà.", "error")
         return redirect(url_for("members"))
@@ -699,15 +662,18 @@ def dell_heartbeat():
     if not isinstance(data, dict):
         abort(400)
 
-    clean = {
-        "hostname": str(data.get("hostname", "Dell"))[:80],
-        "cpu_percent": max(0, min(100, float(data.get("cpu_percent", 0)))),
-        "memory_percent": max(0, min(100, float(data.get("memory_percent", 0)))),
-        "memory_used_gb": max(0, min(100000, float(data.get("memory_used_gb", 0)))),
-        "memory_total_gb": max(0, min(100000, float(data.get("memory_total_gb", 0)))),
-        "uptime_seconds": max(0, min(10**10, int(data.get("uptime_seconds", 0)))),
-        "minecraft_running": bool(data.get("minecraft_running"))
-    }
+    try:
+        clean = {
+            "hostname": str(data.get("hostname", "Dell"))[:80],
+            "cpu_percent": max(0, min(100, float(data.get("cpu_percent", 0)))),
+            "memory_percent": max(0, min(100, float(data.get("memory_percent", 0)))),
+            "memory_used_gb": max(0, min(100000, float(data.get("memory_used_gb", 0)))),
+            "memory_total_gb": max(0, min(100000, float(data.get("memory_total_gb", 0)))),
+            "uptime_seconds": max(0, min(10**10, int(data.get("uptime_seconds", 0)))),
+            "minecraft_running": bool(data.get("minecraft_running"))
+        }
+    except (TypeError, ValueError):
+        abort(400)
 
     with connect_db() as db:
         db.execute("""
@@ -726,37 +692,48 @@ def dell_heartbeat():
 @login_required
 @admin_required
 def admin_settings():
+    if request.method == "POST" and request.form.get("reset_customization") == "1":
+        set_setting(
+            "navigation_config",
+            json.dumps(DEFAULT_NAV, ensure_ascii=False)
+        )
+        set_setting(
+            "site_theme",
+            json.dumps({
+                "background": "#0c0b13",
+                "surface": "#151421"
+            })
+        )
+        flash(
+            "La personnalisation a été réinitialisée. Les comptes sont conservés.",
+            "success"
+        )
+        return redirect(url_for("admin_settings"))
+
     if request.method == "POST":
         labels = {}
-        icons = {}
         visibility = {}
 
         for item in DEFAULT_NAV:
             key = item["key"]
-
             labels[key] = (
                 request.form.get(f"label_{key}", item["label"]).strip()[:32]
                 or item["label"]
             )
-
-            icons[key] = (
-                request.form.get(f"icon_{key}", item["icon"]).strip()[:4]
-                or item["icon"]
-            )
-
             visibility[key] = request.form.get(f"visible_{key}") == "on"
 
+        # Accueil et Paramètres restent accessibles pour éviter de perdre l'accès.
         visibility["dashboard"] = True
-        visibility["account"] = True
+        visibility["settings"] = True
 
         nav = [
             {
-                "key": x["key"],
-                "label": labels[x["key"]],
-                "icon": icons[x["key"]],
-                "visible": visibility[x["key"]]
+                "key": item["key"],
+                "label": labels[item["key"]],
+                "icon": item["icon"],
+                "visible": visibility[item["key"]]
             }
-            for x in DEFAULT_NAV
+            for item in DEFAULT_NAV
         ]
 
         bg = request.form.get("background", "#0c0b13")
@@ -769,27 +746,16 @@ def admin_settings():
             flash("Une couleur du thème est invalide.", "error")
             return redirect(url_for("admin_settings"))
 
-        set_setting(
-            "navigation_config",
-            json.dumps(nav, ensure_ascii=False)
-        )
-
-        set_setting(
-            "site_theme",
-            json.dumps({
-                "background": bg,
-                "surface": surface
-            })
-        )
+        set_setting("navigation_config", json.dumps(nav, ensure_ascii=False))
+        set_setting("site_theme", json.dumps({
+            "background": bg,
+            "surface": surface
+        }))
 
         flash("La personnalisation du site a été enregistrée.", "success")
         return redirect(url_for("admin_settings"))
 
-    nav = {
-        x["key"]: x
-        for x in navigation_items()
-    }
-
+    nav = {x["key"]: x for x in navigation_items()}
     theme = read_json_setting(
         "site_theme",
         {

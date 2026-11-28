@@ -1,7 +1,6 @@
-
 const CACHE_NAME = "kelyanti-hub-v1";
 
-const FILES_TO_CACHE = [
+const STATIC_FILES = [
     "/static/style.css",
     "/static/app.js",
     "/static/manifest.json",
@@ -10,7 +9,7 @@ const FILES_TO_CACHE = [
 
 self.addEventListener("install", (event) => {
     event.waitUntil(
-        caches.open(CACHE_NAME).then((cache) => cache.addAll(FILES_TO_CACHE))
+        caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_FILES))
     );
     self.skipWaiting();
 });
@@ -19,7 +18,8 @@ self.addEventListener("activate", (event) => {
     event.waitUntil(
         caches.keys().then((keys) =>
             Promise.all(
-                keys.filter((key) => key !== CACHE_NAME)
+                keys
+                    .filter((key) => key !== CACHE_NAME)
                     .map((key) => caches.delete(key))
             )
         )
@@ -27,21 +27,24 @@ self.addEventListener("activate", (event) => {
     self.clients.claim();
 });
 
+// Ne jamais mettre en cache les pages privées ou les réponses de connexion.
 self.addEventListener("fetch", (event) => {
     const request = event.request;
     const url = new URL(request.url);
 
-    if (
-        request.method !== "GET" ||
-        url.origin !== self.location.origin ||
-        !url.pathname.startsWith("/static/")
-    ) {
+    if (request.method !== "GET" || url.origin !== self.location.origin) {
+        return;
+    }
+
+    if (!url.pathname.startsWith("/static/")) {
         return;
     }
 
     event.respondWith(
         caches.match(request).then((cached) => {
-            const network = fetch(request).then((response) => {
+            if (cached) return cached;
+
+            return fetch(request).then((response) => {
                 if (response.ok) {
                     const copy = response.clone();
                     caches.open(CACHE_NAME).then((cache) => {
@@ -50,8 +53,6 @@ self.addEventListener("fetch", (event) => {
                 }
                 return response;
             });
-
-            return cached || network;
         })
     );
 });
